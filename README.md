@@ -61,6 +61,7 @@ When a player's front-end becomes disconnected from the back-end socket, this so
 This socket method is used by the front-end for when a player forfeits or for when a player disconnects from the game. When this is triggered, the first this to do is notify the other player in the room that it the room is being deleted and closed. Using the fetchSockets API function, I look for all of the sockets in the room with the id which is passed in the input arguments. For all of the sockets in this room, I use the leave API function to have each player leave the game. Once all players are removed from the socket room, the room is deleted from the global rooms map. 
 
 ## Future Features
+- Add Authentication middleware :heavy_check_mark: (feature/1)
 - Add in game chat between players
 - Add custom A.I. bot to practice against
 - Add watch active game functionality
