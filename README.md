@@ -31,6 +31,7 @@ This repository is just for the back-end. Use the link below to access the front
 - Socket.io
 - http.js
 - uuid.js
+- Firebase Admin
 
 ## Future Features
 - Add Authentication middleware :heavy_check_mark: (feature/1)
