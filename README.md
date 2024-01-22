@@ -23,6 +23,8 @@ This repository is just for the back-end. Use the link below to access the front
 - Handle chess piece move
 - Handle player disconnect
 - Handle closing the room
+- Authentication middleware (feature/1)
+- In game chat between players (feature/2)
 
 ## Back-End Technology Stack
 - Node.js
@@ -35,6 +37,6 @@ This repository is just for the back-end. Use the link below to access the front
 
 ## Future Features
 - Add Authentication middleware :heavy_check_mark: (feature/1)
-- Add in game chat between players
+- Add in game chat between players :heavy_check_mark: (feature/2)
 - Add custom A.I. bot to practice against
 - Add watch active game functionality
