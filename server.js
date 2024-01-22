@@ -18,6 +18,7 @@ var serviceAccount =
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });//Initialize Firebase Admin
+
 const express = require('express');
 const { Server } = require("socket.io");
 const { v4: uuidV4 } = require('uuid');
@@ -64,7 +65,7 @@ io.on('connection', (socket) => {
     socket.on('username', async (username, callback) => {
       let error, message;
       try{
-        socket.data.username = username;//under this socket connections data, create a username 
+        socket.data.username = username;//under this socket connections data, create a username
         error = false;
         message = "added username";
         callback({error,message}); //send callback to client showing success adding username to socket
@@ -74,6 +75,29 @@ io.on('connection', (socket) => {
         callback({error,message});//send callback to client showing error adding username to socket
       }
       
+    });
+
+    //send game message
+    socket.on("sendGameMessage", (data, callback) => {
+      let error, message;
+      try {
+        //send new message to other players in room exluding the socket sending the message
+        socket.timeout(1000).broadcast.to(data.item.room).emit('sendGameMessage', data, (err,response) =>{
+          if (err){//error sending the message to the other players. Let original sender know they need to retry sending the message
+            error = true;
+            message = response.error;
+            callback({error,message});//send callback to client showing error passing the new message to the other sockets
+          } else {//message recieved by other players 
+            error = false;
+            message = "message recieved";
+            callback({error,message});//send callback to client no error passing the new message to the other sockets
+          }
+        });
+      } catch (e){//if the message was not send to other players, then pass an error to the client
+        error = true;
+        message = e;
+        callback({error,message});//send callback to client showing error passing the new message to the other sockets
+      }
     });
   
     //createRoom
