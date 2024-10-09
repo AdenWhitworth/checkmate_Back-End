@@ -3,7 +3,7 @@ import { Server } from "socket.io";
 import http from "http";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import { setupSocket } from "./controllers/socketController";
+import { setupSocket } from "./controllers/socketController/socketController";
 import { errorHandler } from "./utility/errorhandler";
 
 const app = express();
@@ -11,26 +11,29 @@ const server = http.createServer(app);
 
 app.use(express.json());
 app.use(cors({
-  origin: ['https://yourtrusteddomain.com'], // Adjust allowed origins
+  origin: [process.env.BASE_URL as string],
   methods: ['GET', 'POST']
 }));
 
-// Rate limiting to prevent abuse
+
+const limitMinutes = 15;
+const limitMilliSec = limitMinutes * 60 * 1000;
+const maxConnection = 100;
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: limitMilliSec,
+  max: maxConnection,
 });
 app.use(limiter);
 
 const io = new Server(server, {
   cors: {
-    origin: ['https://yourtrusteddomain.com'],
+    origin: [process.env.BASE_URL as string],
   },
 });
 
 setupSocket(io);
 
-// Global error handling middleware
 app.use(errorHandler);
 
 const port = process.env.PORT || 8080;
