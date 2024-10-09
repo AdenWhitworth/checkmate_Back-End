@@ -2,21 +2,32 @@
   "name": "online_chess_with_friends_server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon server.js"
+    "test": "jest",
+    "coverage": "jest --coverage",
+    "dev": "nodemon --exec ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node src/index.js",
+    "type-docs": "typedoc"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^16.4.5",
     "express": "^4.18.2",
+    "express-rate-limit": "^5.5.1",
+    "express-validator": "^6.12.0",
     "firebase-admin": "^12.0.0",
     "socket.io": "^4.7.2",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "@types/express-rate-limit": "^5.1.3",
+    "@types/uuid": "^10.0.0",
+    "nodemon": "^3.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
   }
 }
