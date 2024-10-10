@@ -1,10 +1,11 @@
-import { Server } from "socket.io";
-import { handleCallback } from "../../utility/handleCallback";
+import { Server, Socket } from "socket.io";
+import { handleCallback, handleError } from "../../utility/handleCallback";
 import { RemoteSocket } from "socket.io";
 import { Room } from "../../types/gameTypes";
 
 export const handleCloseRoom = async (
   io: Server,
+  socket: Socket,
   data: { roomId: string },
   callback: Function,
   rooms: Map<string, Room>
@@ -17,9 +18,9 @@ export const handleCloseRoom = async (
     });
 
     rooms.delete(data.roomId);
-    handleCallback(callback, false, "Room closed");
+    handleCallback(callback, "Room closed");
   } catch (error) {
-    handleCallback(callback, true, "Error closing room", { error });
+    handleError(socket, "closeRoomError","Error closing room");
   }
 };
 

@@ -1,6 +1,6 @@
 import { v4 as uuidV4 } from "uuid";
 import { Socket } from "socket.io";
-import { handleCallback } from "../../utility/handleCallback";
+import { handleCallback, handleError } from "../../utility/handleCallback";
 import { Room } from "../../types/gameTypes";
 
 export const handleCreateRoom = async (
@@ -19,9 +19,9 @@ export const handleCreateRoom = async (
 
     rooms.set(roomId, newRoom);
 
-    handleCallback(callback, false, "Room created", { roomId });
+    handleCallback(callback, "Room created", { roomId });
   } catch (error) {
-    handleCallback(callback, true, "Error creating room", { error });
+    handleError(socket, "createRoomError","Error creating room");
   }
 };
 

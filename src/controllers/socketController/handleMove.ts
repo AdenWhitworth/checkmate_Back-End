@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import { handleCallback } from "../../utility/handleCallback";
+import { handleCallback, handleError } from "../../utility/handleCallback";
 
 export const handleMove = async (
   socket: Socket,
@@ -8,18 +8,19 @@ export const handleMove = async (
 ) => {
   try {
     if (!data.room || !data.move) {
-      return handleCallback(callback, true, "Invalid move data.");
+      return handleError(socket, "moveError", "Invalid move data.");
     }
 
     socket.timeout(1000).broadcast.to(data.room).emit('move', data.move, (err: Error | null, response: any) => {
       if (err) {
-        handleCallback(callback, true, err.message || "Error making move");
-      } else {
-        handleCallback(callback, false, "Move made", { move: data.move });
-      }
+        return handleError(socket, "moveError", "Error making move");
+      } 
+        
+      handleCallback(callback, "Move made", { move: data.move });
+      
     });
   } catch (error) {
-    handleCallback(callback, true, "Error making move", { error });
+    handleError(socket, "moveError", "Error making move");
   }
 };
 

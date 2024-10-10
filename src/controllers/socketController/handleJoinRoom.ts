@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import { handleCallback } from "../../utility/handleCallback";
+import { handleCallback, handleError } from "../../utility/handleCallback";
 import { Room, Player } from "../../types/gameTypes";
 
 export const handleJoinRoom = async (
@@ -12,10 +12,10 @@ export const handleJoinRoom = async (
     const room = rooms.get(args.roomId);
 
     if (!room) {
-      return handleCallback(callback, true, "Room does not exist.");
+      return handleError(socket, "joinRoomError", "Room does not exist.");
     }
     if (room.players.length >= 2) {
-      return handleCallback(callback, true, "Room is full.");
+      return handleError(socket, "joinRoomError", "Room is full.");
     }
 
     const newPlayer: Player = { id: socket.id, username: socket.data.username };
@@ -23,10 +23,9 @@ export const handleJoinRoom = async (
     rooms.set(args.roomId, room);
 
     socket.broadcast.to(args.roomId).emit('opponentJoined', { room });
-    handleCallback(callback, false, "Joined room", { room });
-  } catch (error) {
-    handleCallback(callback, true, "Error joining room", { error });
+    handleCallback(callback, "Joined room", { room });
+  } catch (error: any) {
+    handleError(socket, "joinRoomError", "Error joining room");
   }
 };
-
   

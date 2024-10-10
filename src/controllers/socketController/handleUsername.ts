@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import { handleCallback } from "../../utility/handleCallback";
+import { handleCallback, handleError } from "../../utility/handleCallback";
 
 export const handleUsername = async (
   socket: Socket, 
@@ -8,12 +8,13 @@ export const handleUsername = async (
 ) => {
   try {
     if (!username || username.trim() === '') {
-      return handleCallback(callback, true, "Invalid username.");
+      return handleError(socket, "usernameError", "Invalid username");
     }
+
     socket.data.username = username;
-    handleCallback(callback, false, "Username added");
+    handleCallback(callback, "Username added");
   } catch (error) {
-    handleCallback(callback, true, "Error adding username", { error });
+    handleError(socket, "usernameError", "Error adding username");
   }
 };
   

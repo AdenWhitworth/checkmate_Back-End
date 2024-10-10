@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import { handleCallback } from "../../utility/handleCallback";
+import { handleCallback, handleError } from "../../utility/handleCallback";
 
 export const handleSendGameMessage = async (
   socket: Socket,
@@ -8,18 +8,19 @@ export const handleSendGameMessage = async (
 ) => {
   try {
     if (!data || !data.item || !data.item.room) {
-      return handleCallback(callback, true, "Invalid message data.");
+      return handleError(socket, "sendGameMessageError", "Invalid message data");
     }
 
     socket.timeout(1000).broadcast.to(data.item.room).emit('sendGameMessage', data, (err: Error | null, response: any) => {
-      if (err) {
-        handleCallback(callback, true, err.message || "Failed to send message");
-      } else {
-        handleCallback(callback, false, "Message received");
+      if (err) { 
+        return handleError(socket, "sendGameMessageError", "Error sending game message");
       }
+        
+      handleCallback(callback, "Message received by opponent");
+      
     });
   } catch (error) {
-    handleCallback(callback, true, "Error sending game message", { error });
+    handleError(socket, "sendGameMessageError", "Error sending game message");
   }
 };
 

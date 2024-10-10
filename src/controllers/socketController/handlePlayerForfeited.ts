@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import { handleCallback } from "../../utility/handleCallback";
+import { handleCallback, handleError } from "../../utility/handleCallback";
 
 export const handlePlayerForfeited = async (
   socket: Socket,
@@ -9,13 +9,14 @@ export const handlePlayerForfeited = async (
   try {
     socket.timeout(1000).broadcast.to(data.roomId).emit("playerForfeited", data, (err: Error | null, response: any) => {
       if (err) {
-        handleCallback(callback, true, err.message || "Error forfeiting");
-      } else {
-        handleCallback(callback, false, "Player forfeited");
+        return handleError(socket, "playerForfeitError", "Error forfeiting the game");
       }
+      
+      handleCallback(callback, "Opponent recieved your forgeit.");
+      
     });
   } catch (error) {
-    handleCallback(callback, true, "Error forfeiting", { error });
+    handleError(socket, "playerForfeitError", "Error forfeiting the game");
   }
 };
 
