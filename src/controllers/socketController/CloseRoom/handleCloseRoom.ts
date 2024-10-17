@@ -1,4 +1,4 @@
-import { Server, Socket } from "socket.io";
+import { Server } from "socket.io";
 import { handleCallback, extractErrorMessage } from "../../../utility/handleCallback";
 import { RemoteSocket } from "socket.io";
 import { Room } from "../../../types/gameTypes";

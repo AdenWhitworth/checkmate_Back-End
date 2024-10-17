@@ -1,9 +1,12 @@
-import { Socket } from "socket.io";
+import { Server, Socket } from "socket.io";
 import { handleCallback, extractErrorMessage } from "../../../utility/handleCallback";
 import { MoveArgs, CallbackResponseMove } from "./MoveTypes";
+import { Room } from "../../../types/gameTypes";
 
 export const handleMove = async (
+  io: Server,
   socket: Socket,
+  rooms: Map<string, Room>,
   moveArgs: MoveArgs,
   callback: Function
 ) => {
@@ -12,7 +15,7 @@ export const handleMove = async (
       throw new Error('Invalid move data');
     }
 
-    socket.timeout(1000).broadcast.to(moveArgs.room.roomId).emit('move', moveArgs, (error: any, response: CallbackResponseMove[]) => {  
+    socket.timeout(1000).broadcast.to(moveArgs.room.roomId).emit('recieveMove', moveArgs, (error: any, response: any) => {  
       if (error) {
         handleCallback(callback, true, "Error broadcasting move to opponent");
         return;

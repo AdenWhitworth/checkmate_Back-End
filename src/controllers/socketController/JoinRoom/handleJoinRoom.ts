@@ -26,7 +26,7 @@ export const handleJoinRoom = async (
       room: room
     }
 
-    socket.timeout(1000).broadcast.to(joinRoomArgs.room.roomId).emit('opponentJoined', newJoinRoomArgs, (error: any, response: CallbackResponseJoinRoom[]) => {
+    socket.timeout(3000).broadcast.to(joinRoomArgs.room.roomId).emit('opponentJoined', newJoinRoomArgs, async (error: any, response: CallbackResponseJoinRoom[]) => {
       if (error) {
         handleCallback(callback, true, "Error broadcasting opponent joined");
         return;
@@ -44,6 +44,7 @@ export const handleJoinRoom = async (
         return;
       }
 
+      await socket.join(joinRoomArgs.room.roomId);
       rooms.set(joinRoomArgs.room.roomId, room);
     
       handleCallback(callback, false, res.message, newJoinRoomArgs);

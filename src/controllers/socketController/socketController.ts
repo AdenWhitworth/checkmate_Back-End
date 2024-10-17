@@ -33,7 +33,7 @@ export const setupSocket = (io: Server) => {
     socket.on('addUser', (addUserArgs: AddUserArgs, callback: Function) => handleAddUser(socket, addUserArgs, callback));
     socket.on('createRoom', (callback: Function) => handleCreateRoom(socket, callback, rooms));
     socket.on('joinRoom', (joinRoomArgs: JoinRoomArgs, callback: Function) => handleJoinRoom(socket, joinRoomArgs, callback, rooms));
-    socket.on('move', (moveArgs: MoveArgs, callback: Function) => handleMove(socket, moveArgs, callback));
+    socket.on('sendMove', (moveArgs: MoveArgs, callback: Function) => handleMove(io, socket, rooms, moveArgs, callback));
     socket.on('disconnect', () => handleDisconnect(socket, rooms));
     socket.on('playerForfeited', (forfeitArgs: ForfeitArgs, callback: Function) => handlePlayerForfeited(socket, forfeitArgs, callback));
     socket.on('closeRoom', (closeRoomArgs: CloseRoomArgs, callback: Function) => handleCloseRoom(io, closeRoomArgs, callback, rooms));
