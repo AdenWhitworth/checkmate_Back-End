@@ -1,7 +1,7 @@
 import { v4 as uuidV4 } from "uuid";
 import { Socket } from "socket.io";
-import { handleCallback, handleError } from "../../utility/handleCallback";
-import { Room } from "../../types/gameTypes";
+import { handleCallback, extractErrorMessage } from "../../../utility/handleCallback";
+import { Room } from "../../../types/gameTypes";
 
 export const handleCreateRoom = async (
   socket: Socket,
@@ -9,6 +9,7 @@ export const handleCreateRoom = async (
   rooms: Map<string, Room>
 ) => {
   try {
+    if (!socket.data.username) throw Error("Socket username required.")
     const roomId = uuidV4();
     await socket.join(roomId);
 
@@ -18,10 +19,9 @@ export const handleCreateRoom = async (
     };
 
     rooms.set(roomId, newRoom);
-
-    handleCallback(callback, "Room created", { roomId });
+    handleCallback(callback, false, "Room successfully created", { room: newRoom});
   } catch (error) {
-    handleError(socket, "createRoomError","Error creating room");
+    handleCallback(callback, true, extractErrorMessage(error));
   }
 };
 

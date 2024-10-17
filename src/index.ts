@@ -28,7 +28,7 @@ app.use(limiter);
 
 const io = new Server(server, {
   cors: {
-    origin: [process.env.BASE_URL as string],
+    origin: [process.env.BASE_URL as string, process.env.TEST_URL as string],
   },
 });
 

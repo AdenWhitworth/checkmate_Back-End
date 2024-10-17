@@ -1,13 +1,20 @@
 import { Server, Socket } from "socket.io";
-import { handleUsername } from './handleUsername';
-import { handleCreateRoom } from './handleCreateRoom';
-import { handleJoinRoom } from './handleJoinRoom';
-import { handleMove } from './handleMove';
-import { handleDisconnect } from './handleDisconnect';
-import { handlePlayerForfeited } from './handlePlayerForfeited';
-import { handleCloseRoom } from './handleCloseRoom';
+import { handleAddUser } from './AddUser/handleAddUser';
+import { handleCreateRoom } from './CreateRoom/handleCreateRoom';
+import { handleJoinRoom } from './JoinRoom/handleJoinRoom';
+import { handleMove } from './Move/handleMove';
+import { handleDisconnect } from './Disconnect/handleDisconnect';
+import { handlePlayerForfeited } from './PlayerForfeit/handlePlayerForfeit';
+import { handleCloseRoom } from './CloseRoom/handleCloseRoom';
+import { handleSendGameMessage } from "./InGameMessage/handleInGameMessage";
 import { authMiddleware } from "../../middleware/authMiddleware";
 import { Room } from "../../types/gameTypes";
+import { AddUserArgs } from "./AddUser/AddUserTypes";
+import { JoinRoomArgs } from "./JoinRoom/JoinRoomTypes";
+import { MoveArgs } from "./Move/MoveTypes";
+import { ForfeitArgs } from "./PlayerForfeit/PlayerForfeitTypes";
+import { CloseRoomArgs } from "./CloseRoom/CloseRoomTypes";
+import { InGameMessageArgs } from "./InGameMessage/InGameMessageTypes";
 
 const rooms = new Map<string, Room>();
 
@@ -23,13 +30,14 @@ export const setupSocket = (io: Server) => {
   });
 
   io.on("connection", (socket: Socket) => {
-    socket.on('username', (username: string, callback: Function) => handleUsername(socket, username, callback));
+    socket.on('addUser', (addUserArgs: AddUserArgs, callback: Function) => handleAddUser(socket, addUserArgs, callback));
     socket.on('createRoom', (callback: Function) => handleCreateRoom(socket, callback, rooms));
-    socket.on('joinRoom', (args: { roomId: string }, callback: Function) => handleJoinRoom(socket, args, callback, rooms));
-    socket.on('move', (data: { room: string, move: string }, callback: Function) => handleMove(socket, data, callback));
+    socket.on('joinRoom', (joinRoomArgs: JoinRoomArgs, callback: Function) => handleJoinRoom(socket, joinRoomArgs, callback, rooms));
+    socket.on('move', (moveArgs: MoveArgs, callback: Function) => handleMove(socket, moveArgs, callback));
     socket.on('disconnect', () => handleDisconnect(socket, rooms));
-    socket.on('playerForfeited', (data: { roomId: string }, callback: Function) => handlePlayerForfeited(socket, data, callback));
-    socket.on('closeRoom', (data: { roomId: string }, callback: Function) => handleCloseRoom(io, socket, data, callback, rooms));
+    socket.on('playerForfeited', (forfeitArgs: ForfeitArgs, callback: Function) => handlePlayerForfeited(socket, forfeitArgs, callback));
+    socket.on('closeRoom', (closeRoomArgs: CloseRoomArgs, callback: Function) => handleCloseRoom(io, closeRoomArgs, callback, rooms));
+    socket.on('inGameMessage', (inGameMessageArgs: InGameMessageArgs, callback: Function) => handleSendGameMessage(socket, inGameMessageArgs, callback));
   });
 };
 
