@@ -1,11 +1,12 @@
 import { Room } from "../../../types/gameTypes";
 
 export interface Message {
+    id: string;
     message: string;
     time: string;
     username: string;
     room: Room;
-    messageError: boolean;
+    status: "sending" | "delivered" | "error";
 }
 
 export interface InGameMessageArgs {

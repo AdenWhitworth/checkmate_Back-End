@@ -8,11 +8,12 @@ export const handleSendGameMessage = async (
   callback: Function
 ) => {
   try {
-    if (!inGameMessageArgs.inGameMessage.room.roomId || inGameMessageArgs.inGameMessage.message) {
+
+    if (!inGameMessageArgs.inGameMessage.room.roomId || !inGameMessageArgs.inGameMessage.message) {
       throw new Error('Invalid message data');
     }
 
-    socket.timeout(1000).broadcast.to(inGameMessageArgs.inGameMessage.room.roomId).emit('inGameMessage', inGameMessageArgs, (error: any, response: CallbackResponseInGameMessage[]) => {  
+    socket.timeout(1000).broadcast.to(inGameMessageArgs.inGameMessage.room.roomId).emit('receiveGameMessage', inGameMessageArgs, (error: any, response: CallbackResponseInGameMessage[]) => {  
       if (error) {
         handleCallback(callback, true, "Error broadcasting message to opponent");
         return;

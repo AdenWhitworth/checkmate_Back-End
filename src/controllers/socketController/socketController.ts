@@ -37,7 +37,7 @@ export const setupSocket = (io: Server) => {
     socket.on('disconnect', () => handleDisconnect(socket, rooms));
     socket.on('playerForfeited', (forfeitArgs: ForfeitArgs, callback: Function) => handlePlayerForfeited(socket, forfeitArgs, callback));
     socket.on('closeRoom', (closeRoomArgs: CloseRoomArgs, callback: Function) => handleCloseRoom(io, closeRoomArgs, callback, rooms));
-    socket.on('inGameMessage', (inGameMessageArgs: InGameMessageArgs, callback: Function) => handleSendGameMessage(socket, inGameMessageArgs, callback));
+    socket.on('sendGameMessage', (inGameMessageArgs: InGameMessageArgs, callback: Function) => handleSendGameMessage(socket, inGameMessageArgs, callback));
   });
 };
 
