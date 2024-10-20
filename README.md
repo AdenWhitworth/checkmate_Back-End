@@ -1,12 +1,12 @@
-<img width="80" src="https://github.com/AdenWhitworth/online_chess_with_friends_Front-End/raw/master/src/Images/King%20Logo%20Black.svg" alt="Online Chess With Friends Logo">
+<img width="80" src="https://github.com/AdenWhitworth/checkmate_Front-End/raw/master/src/Images/King%20Logo%20Black.svg" alt="Checkmate Logo">
 
-# Online Chess With Friends Back-End
+# Checkmate Back-End
 
-Welcome to the **Online Chess With Friends Back-End**, the API for the Online Chess With Friends game. This backend controls all active chess games, user authentication, chat, and ranking systems.
+Welcome to the **Checkmate Back-End**, the API for the Checkmate game. This backend controls all active chess games, user authentication, chat, and ranking systems.
 
 ## Table of Contents
 - [Overview](#overview)
-- [Online Chess With Friends Live Demo](#online-chess-with-friends-live-demo)
+- [Checkmate Demo](#checkmate-demo)
 - [Features](#features)
 - [Technologies Used](#technologies-used)
 - [Getting Started](#getting-started)
@@ -23,11 +23,11 @@ Welcome to the **Online Chess With Friends Back-End**, the API for the Online Ch
 
 ## Overview
 
-**Online Chess With Friends** is an application that enables players to compete in real-time chess matches, communicate with opponents, and track their rankings. The backend, built with Node.js and WebSocket, manages all server-side logic, ensuring a smooth, responsive gameplay experience.
+**Checkmate** is an application that enables players to compete in real-time chess matches, communicate with opponents, and track their rankings. The backend, built with Node.js and WebSocket, manages all server-side logic, ensuring a smooth, responsive gameplay experience.
 
-## Online Chess With Friends Live Demo
+## Checkmate Demo
 
-The Online Chess With Friends application is live and can be accessed here: [Online Chess With Friends Demo](https://online-chess-with-friends.web.app/). You can explore all features of the game, including real-time gameplay, chat, and rankings.
+The Checkmate application is live and can be accessed here: [Checkmate Demo](https://online-chess-with-friends.web.app/). You can explore all features of the game, including real-time gameplay, chat, and rankings.
 
 ### Test User Credentials
 
@@ -49,6 +49,7 @@ Try out the app using the following demo accounts:
 ## Technologies Used
 
 - **Node.js**: Backend runtime environment for executing JavaScript on the server.
+- **TypeScript**: A strongly typed superset of JavaScript that enhances code quality and provides better tooling and type safety during development.
 - **Express.js**: Web framework for building the RESTful API.
 - **JWT (JSON Web Tokens)**: Used for secure authentication.
 - **Socket.IO**: A library that facilitates real-time, bidirectional communication between clients and servers, crucial for features like live updates and notifications.
@@ -72,7 +73,7 @@ Make sure you have the following installed:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/AdenWhitworth/online_chess_with_friends_Front-End.git
+   git clone https://github.com/AdenWhitworth/checkmate_Back-End.git
    ```
 2. Install dependencies:
    ```bash
@@ -106,9 +107,10 @@ Create a `.env` file in the root directory and define the following variables:
  ```bash
    npm install firebase-admin
    ```
-3. Set Up Firebase Authentication
+3. Set up Firebase configuration variables in Your React App `.env`.
+4. Set Up Firebase Authentication
   - In the Firebase Console, navigate to Firestore Database and create your database. Add collections for users, games, etc.
-4. Set Up Firestore Database:
+5. Set Up Firestore Database:
   -  In the Firebase Console, navigate to Firestore Database and create your database. Add collections for users, games, etc.
 
 ### Running the Backend
@@ -129,15 +131,17 @@ npm run dev
 The backend provides a set of WebSocket endpoints to interact with the system in real-time:
 
 - Game Routes
-  - `/username`: Add a username to the socket connection.
+  - `/addUser`: Add a username to the socket connection.
   - `/createRoom`: Create a new game room.
   - `/joinRoom`: Join a game room.
   - `/opponentJoined`: Notify the opponent that you’ve joined.
-  - `/move`: Send chess moves to the opponent.
+  - `/sendMove`: Send chess moves to the opponent.
+  - `/recieveMove`: Recieve chess moves from the opponent.
   - `/playerForfeited`: Notify the other player of a forfeit.
   - `/closeRoom`: Close the room when the game is finished.
 - Chat Routes
   - `/sendGameMessage`: Send a chat message to the opponent during a game.
+  - `/receiveGameMessage`: Recieve a chat message to the opponent during a game.
 - Connection Routes
   - `/connect`: Establish a WebSocket connection for real-time game updates.
   - `/disconnect`: Disconnect from the WebSocket server.
