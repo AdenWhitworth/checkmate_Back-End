@@ -27,7 +27,7 @@ Welcome to the **Checkmate Back-End**, the API for the Checkmate game. This back
 
 ## Checkmate Demo
 
-The Checkmate application is live and can be accessed here: [Checkmate Demo](https://online-chess-with-friends.web.app/). You can explore all features of the game, including real-time gameplay, chat, and rankings.
+The Checkmate application is live and can be accessed here: [Checkmate Demo](https://checkmateplay.com). You can explore all features of the game, including real-time gameplay, chat, and rankings.
 
 ### Test User Credentials
 
