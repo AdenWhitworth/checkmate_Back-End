@@ -84,6 +84,13 @@ Make sure you have the following installed:
 Create a `.env` file in the root directory and define the following variables:
 
   ```plain text
+  # Application Configuration
+  PORT=8080  # The port on which the server will run
+  BASE_URL=your_frontend_url  # The base URL for your frontend application
+  BASE_URL_WWW=your_front-end_www_url  # The base www URL for your frontend application
+  TEST_URL=your_testing_frontend_url  # The base test URL for your frontend application
+
+  #Firebase Configuration
   type=service_account  # Firebase service account type
   project_id=your_project_id  # Firebase project ID
   private_key_id=your_private_key_id  # Private key ID for service account authentication
