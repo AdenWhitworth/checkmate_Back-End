@@ -2,11 +2,23 @@ import { Socket } from "socket.io";
 import { handleCallback, extractErrorMessage } from "../../../utility/handleCallback";
 import { InGameMessageArgs, CallbackResponseInGameMessage } from "./InGameMessageTypes";
 
+/**
+ * Handles sending an in-game message to the specified room and processes the response from the recipient(s).
+ * 
+ * @param {Socket} socket - The Socket.IO socket instance representing the connected client.
+ * @param {InGameMessageArgs} inGameMessageArgs - An object containing the in-game message data, including the room information and message content.
+ * @param {Function} callback - A callback function to be executed once the operation is complete.
+ *        The callback receives two arguments: an error flag (`boolean`) and a message (`string`).
+ * 
+ * @throws {Error} If the provided in-game message data is invalid or incomplete.
+ * 
+ * @returns {Promise<void>} Resolves when the message is successfully sent or an error is handled.
+ */
 export const handleSendGameMessage = async (
   socket: Socket,
   inGameMessageArgs: InGameMessageArgs,
   callback: Function
-) => {
+): Promise<void> => {
   try {
 
     if (!inGameMessageArgs.inGameMessage.room.roomId || !inGameMessageArgs.inGameMessage.message) {

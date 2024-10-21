@@ -18,7 +18,36 @@ import { InGameMessageArgs } from "./InGameMessage/InGameMessageTypes";
 
 const rooms = new Map<string, Room>();
 
-export const setupSocket = (io: Server) => {
+/**
+ * Sets up Socket.IO server event handlers and authentication middleware.
+ * 
+ * @param {Server} io - The Socket.IO server instance to set up event listeners and middleware.
+ * 
+ * @description This function initializes middleware for authentication and defines event handlers for various socket events such as:
+ * - `addUser`: To add a new user to a socket connection.
+ * - `createRoom`: To create a new room and add the user to it.
+ * - `joinRoom`: To join an existing room if not full.
+ * - `sendMove`: To broadcast a game move to other players in the room.
+ * - `disconnect`: To handle disconnection of a user from a room.
+ * - `playerForfeited`: To broadcast a player forfeit event to other players in the room.
+ * - `closeRoom`: To close a specified room and remove all users.
+ * - `sendGameMessage`: To send an in-game message to other players in the room.
+ * 
+ * Middleware:
+ * - Uses `authMiddleware` for authorization checks on socket connection.
+ * 
+ * @fires socket#addUser - Adds a user to the socket connection.
+ * @fires socket#createRoom - Creates a new room and adds the user.
+ * @fires socket#joinRoom - Joins an existing room if it is not full.
+ * @fires socket#sendMove - Broadcasts a game move to other players in the room.
+ * @fires socket#disconnect - Handles user disconnection from a room.
+ * @fires socket#playerForfeited - Broadcasts a forfeit event to other players in the room.
+ * @fires socket#closeRoom - Closes a specified room and removes all users.
+ * @fires socket#sendGameMessage - Sends an in-game message to other players in the room.
+ * 
+ * @returns {void} This function does not return any value.
+ */
+export const setupSocket = (io: Server): void => {
   io.use(async (socket, next) => {
     try {
       await authMiddleware(socket, next);
