@@ -43,7 +43,7 @@ const server = http.createServer(app);
 
 app.use(express.json());
 app.use(cors({
-  origin: [process.env.BASE_URL as string],
+  origin: [process.env.BASE_URL as string, process.env.TEST_URL as string, process.env.BASE_URL_WWW as string],
   methods: ['GET', 'POST']
 }));
 
@@ -60,7 +60,7 @@ app.use(limiter);
 
 const io = new Server(server, {
   cors: {
-    origin: [process.env.BASE_URL as string, process.env.TEST_URL as string],
+    origin: [process.env.BASE_URL as string, process.env.TEST_URL as string, process.env.BASE_URL_WWW as string],
   },
 });
 
