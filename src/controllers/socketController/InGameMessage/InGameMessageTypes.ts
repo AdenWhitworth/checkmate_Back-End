@@ -1,4 +1,4 @@
-import { Room } from "../../../types/gameTypes";
+import { Game } from "../CreateRoom/CreateRoomTypes";
 
 /**
  * Represents a message sent within a game room.
@@ -9,7 +9,7 @@ import { Room } from "../../../types/gameTypes";
  * @property {string} message - The content of the message.
  * @property {string} time - The timestamp of when the message was sent, formatted as a string.
  * @property {string} username - The username of the player who sent the message.
- * @property {Room} room - The room object to which the message belongs.
+ * @property {Game} game - The game object to which the message belongs.
  * @property {"sending" | "delivered" | "error"} status - The current status of the message.
  */
 export interface Message {
@@ -17,7 +17,7 @@ export interface Message {
     message: string;
     time: string;
     username: string;
-    room: Room;
+    game: Game;
     status: "sending" | "delivered" | "error";
 }
 
