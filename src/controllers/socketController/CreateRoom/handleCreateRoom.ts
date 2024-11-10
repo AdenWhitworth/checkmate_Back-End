@@ -29,8 +29,8 @@ import { Game, CreateRoomArgs } from "./CreateRoomTypes";
  */
 export const handleCreateRoom = async (
   socket: Socket,
+  createRoomArgs: CreateRoomArgs,
   callback: Function,
-  createRoomArgs: CreateRoomArgs
 ): Promise<void> => {
   try {
     if (!socket.data.username || !socket.data.userId) throw Error("Socket username and userId required.");

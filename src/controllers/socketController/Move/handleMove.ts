@@ -1,62 +1,83 @@
-import { Server, Socket } from "socket.io";
+import { Socket } from "socket.io";
 import { handleCallback, extractErrorMessage } from "../../../utility/handleCallback";
-import { MoveArgs, CallbackResponseMove } from "./MoveTypes";
-import { Room } from "../../../types/gameTypes";
+import { MoveArgs } from "./MoveTypes";
+import { admin, firestore } from "../../../services/firebaseService";
 
 /**
- * Handles broadcasting a move to all other clients in the specified room and processes the response from the recipients.
+ * Handles broadcasting a move to all other clients in the specified room, updates the game state in Firestore, 
+ * and processes the response from the recipients.
  * 
- * @param {Server} io - The Socket.IO server instance to manage client connections and room interactions.
- * @param {Socket} socket - The Socket.IO socket instance representing the connected client.
- * @param {Map<string, Room>} rooms - A map containing all the active rooms, where the key is the room ID and the value is a `Room` object.
- * @param {MoveArgs} moveArgs - An object containing the move details and the room information.
- * @param {Room} moveArgs.room - The room object where the move is being made, including the room ID.
- * @param {Object} moveArgs.move - The details of the move being made.
+ * @param {Socket} socket - The Socket.IO socket instance representing the connected client making the move.
+ * @param {MoveArgs} moveArgs - An object containing the details of the move and the game information.
+ * @param {Game} moveArgs.game - The game object containing the game ID and player details.
+ * @param {Object} moveArgs.move - The details of the move being made, such as the piece moved, start and end positions.
  * @param {Function} callback - A callback function to be executed once the operation is complete.
- *        The callback receives three arguments: an error flag (`boolean`), a message (`string`), and an optional move arguments object.
+ *        The callback receives three arguments:
+ *        - an error flag (`boolean`),
+ *        - a message (`string`),
+ *        - an optional move arguments object (`MoveArgs`).
  * 
  * @throws {Error} If the provided move data is invalid or incomplete.
  * 
- * @fires socket#recieveMove - Emits a "recieveMove" event to all other clients in the room, sending the move details and room information.
+ * @fires socket#recieveMove - Emits a "recieveMove" event to all other clients in the room, sending the move details and game information.
  * 
- * @returns {Promise<void>} Resolves when the move is successfully broadcast, or an error is handled.
+ * @returns {Promise<void>} Resolves when the move is successfully broadcast and saved, or an error is handled.
  */
 export const handleMove = async (
-  io: Server,
   socket: Socket,
-  rooms: Map<string, Room>,
   moveArgs: MoveArgs,
   callback: Function
 ): Promise<void> => {
   try {
-    if (!moveArgs.room || !moveArgs.move) {
+    const { game, move } = moveArgs;
+
+    if (!game || !game.gameId || !move) {
       throw new Error('Invalid move data');
     }
 
-    socket.timeout(1000).broadcast.to(moveArgs.room.roomId).emit('recieveMove', moveArgs, (error: any, response: any) => {  
+    const gameRef = firestore.collection('games').doc(game.gameId);
+
+    socket.timeout(1000).broadcast.to(game.gameId).emit('recieveMove', moveArgs, async (error: any, response: any) => {
       if (error) {
         handleCallback(callback, true, "Error broadcasting move to opponent");
         return;
       }
-      
+
       if (response.length !== 1) {
         handleCallback(callback, true, "Unexpected number of responses");
         return;
       }
-    
+
       const res = response[0];
-    
       if (!res || !res.message) {
         handleCallback(callback, true, "Empty or invalid response");
         return;
       }
-      
-      handleCallback(callback, false, res.message, moveArgs);
+
+      try {
+        await firestore.runTransaction(async (transaction) => {
+          const gameDoc = await transaction.get(gameRef);
+          if (!gameDoc.exists) {
+            throw new Error('Game not found');
+          }
+
+          const gameData = gameDoc.data();
+          if (!gameData) throw new Error('Game data is missing');
+
+          const updatedMoveHistory = [...(gameData.moveHistory || []), move];
+          transaction.update(gameRef, {
+            moveHistory: updatedMoveHistory,
+            lastMoveTime: admin.firestore.Timestamp.now(),
+          });
+        });
+
+        handleCallback(callback, false, res.message, moveArgs);
+      } catch (firestoreError) {
+        handleCallback(callback, true, "Error updating game in Firestore");
+      }
     });
   } catch (error) {
     handleCallback(callback, true, extractErrorMessage(error));
   }
 };
-
-
   
