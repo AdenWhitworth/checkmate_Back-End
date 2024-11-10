@@ -108,14 +108,16 @@ export const updateGameResult = async (
         rating: newRatingA,
         gamesPlayed: admin.firestore.FieldValue.increment(1),
         ...(game.winner === "playerA" && { wins: admin.firestore.FieldValue.increment(1) }),
-        ...(game.winner === "playerB" && { losses: admin.firestore.FieldValue.increment(1) })
+        ...(game.winner === "playerB" && { losses: admin.firestore.FieldValue.increment(1) }),
+        ...(game.winner === "draw" && { draws: admin.firestore.FieldValue.increment(1) })
       });
 
       transaction.update(playerBRef, {
         rating: newRatingB,
         gamesPlayed: admin.firestore.FieldValue.increment(1),
         ...(game.winner === "playerB" && { wins: admin.firestore.FieldValue.increment(1) }),
-        ...(game.winner === "playerA" && { losses: admin.firestore.FieldValue.increment(1) })
+        ...(game.winner === "playerA" && { losses: admin.firestore.FieldValue.increment(1) }),
+        ...(game.winner === "draw" && { draws: admin.firestore.FieldValue.increment(1) })
       });
 
       transaction.update(gameRef, { status: 'completed', winner: game.winner });
