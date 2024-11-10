@@ -1,14 +1,16 @@
-import { Room } from "../../../types/gameTypes";
+import { Game } from "../CreateRoom/CreateRoomTypes";
 
 /**
- * Represents the arguments required for a player to join a room.
+ * Represents the arguments required for a player to join an existing game room.
+ * This includes the details of the game that the player is attempting to join.
  * 
  * @interface JoinRoomArgs
  * 
- * @property {Room} room - The room object that the player is attempting to join. This should include the room's ID and other relevant details.
+ * @property {Game} game - The game object containing all relevant information about the game session.
+ *                         This includes the game ID, player details, board state, and current game status.
  */
 export interface JoinRoomArgs {
-    room: Room;
+    game: Game;
 }
 
 /**

@@ -1,71 +1,75 @@
 import { Socket } from "socket.io";
 import { handleCallback, extractErrorMessage } from "../../../utility/handleCallback";
-import { Room, Player } from "../../../types/gameTypes";
 import { CallbackResponseJoinRoom, JoinRoomArgs } from "./JoinRoomTypes";
+import { firestore } from "../../../services/firebaseService";
 
 /**
- * Handles a player's attempt to join an existing room by validating the room, adding the player, and notifying others in the room.
+ * Handles a player's attempt to join an existing game room by validating the room's state,
+ * updating the player's connection status, and notifying other players in the room.
  * 
  * @param {Socket} socket - The Socket.IO socket instance representing the connected client.
- * @param {JoinRoomArgs} joinRoomArgs - An object containing the room information that the player wants to join.
- * @param {Room} joinRoomArgs.room - The room object with the ID of the room the player is attempting to join.
+ *        This socket instance contains the `userId` in its data.
+ * 
+ * @param {JoinRoomArgs} joinRoomArgs - An object containing information about the game the player wants to join.
+ * @param {Game} joinRoomArgs.game - The game object containing details about the game, including the game ID.
+ * 
  * @param {Function} callback - A callback function to be executed once the operation is complete.
- *        The callback receives three arguments: an error flag (`boolean`), a message (`string`), and an optional updated room object.
- * @param {Map<string, Room>} rooms - A map containing all the active rooms, where the key is the room ID and the value is a `Room` object.
+ *        The callback receives three arguments:
+ *        - an error flag (`boolean`),
+ *        - a message (`string`),
+ *        - an optional updated room object (`JoinRoomArgs`).
  * 
- * @throws {Error} If the room does not exist or is full.
+ * @throws {Error} If the game does not exist, if the game data is missing, or if the game room is full.
  * 
- * @fires socket#opponentJoined - Emits an "opponentJoined" event to all other clients in the room, sending the updated room information.
+ * @fires socket#opponentJoined - Emits an "opponentJoined" event to all other clients in the room,
+ *                                sending the updated room information when a player joins.
  * 
- * @returns {Promise<void>} Resolves when the player is successfully added to the room, or an error is handled.
+ * @returns {Promise<void>} Resolves when the player is successfully added to the game room or if an error is handled.
  */
 export const handleJoinRoom = async (
   socket: Socket,
   joinRoomArgs: JoinRoomArgs,
   callback: Function,
-  rooms: Map<string, Room>
 ): Promise<void> => {
   try {
-    const room = rooms.get(joinRoomArgs.room.roomId);
+    const gameId = joinRoomArgs.game.gameId;
+    const gameRef = firestore.collection('games').doc(gameId);
 
-    if (!room) {
-      throw new Error('Room does not exist');
-    }
-    if (room.players.length >= 2) {
-      throw new Error('Room is full');
-    }
+    await firestore.runTransaction(async (transaction) => {
+      const gameDoc = await transaction.get(gameRef);
 
-    const newPlayer: Player = { id: socket.id, username: socket.data.username };
-    room.players.push(newPlayer);
+      if (!gameDoc.exists) {
+        throw new Error("Game with this ID does not exist.");
+      }
 
-    const newJoinRoomArgs: JoinRoomArgs = {
-      room: room
-    }
+      const gameData = gameDoc.data();
+      if (!gameData) {
+        throw new Error("Game data is missing");
+      }
 
-    socket.timeout(3000).broadcast.to(joinRoomArgs.room.roomId).emit('opponentJoined', newJoinRoomArgs, async (error: any, response: CallbackResponseJoinRoom[]) => {
-      if (error) {
+      if (gameData.playerA.connected && gameData.playerB.connected) {
+        throw new Error("Game is full");
+      }
+
+      if (gameData.playerB.connected) {
+        throw new Error("Player B is already connected");
+      }
+
+      transaction.update(gameRef, { 'playerB.connected': 'pending' });
+      return gameData;
+    });
+
+    socket.timeout(3000).broadcast.to(gameId).emit('opponentJoined', joinRoomArgs, async (error: any, response: CallbackResponseJoinRoom[]) => {
+      if (error || !response || response.length !== 1 || !response[0]?.message) {
+        await gameRef.update({ 'playerB.connected': false });
         handleCallback(callback, true, "Error broadcasting opponent joined");
         return;
       }
-      
-      if (response.length !== 1) {
-        handleCallback(callback, true, "Unexpected number of responses");
-        return;
-      }
-    
-      const res = response[0];
-    
-      if (!res || !res.message) {
-        handleCallback(callback, true, "Empty or invalid response");
-        return;
-      }
 
-      await socket.join(joinRoomArgs.room.roomId);
-      rooms.set(joinRoomArgs.room.roomId, room);
-    
-      handleCallback(callback, false, res.message, newJoinRoomArgs);
+      await gameRef.update({ 'playerB.connected': true });
+      await socket.join(gameId);
+      handleCallback(callback, false, response[0].message, joinRoomArgs);
     });
-
   } catch (error: any) {
     handleCallback(callback, true, extractErrorMessage(error));
   }
