@@ -5,13 +5,18 @@ import { Move } from "chess.js";
  * Represents the arguments required to broadcast a move within a game room.
  * 
  * @interface MoveArgs
- * 
- * @property {Game} game - The game object associated with the move being made.
- * @property {string} move - The details of the move being made, typically represented as a string.
+ * @property {Game} moveArgs.game - The game object containing the game ID and player details.
+ * @property {Move} moveArgs.move - The details of the move being made, such as the piece moved, start and end positions.
+ * @property {Move[]} moveArgs.history - An array of all the moves made during the game.
+ * @property {string} moveArgs.fen - The current chess fen of the board state.
+ * @property {"w" | "b"} moveArgs.currentTurn - the player whose turn it is.
  */
 export interface MoveArgs {
-    game: Game, 
-    move: Move
+    game: Game; 
+    move: Move;
+    history: Move[];
+    fen: string;
+    currentTurn: "w" | "b";
 };
 
 /**

@@ -2,6 +2,7 @@ import { Socket } from "socket.io";
 import { handleCallback, extractErrorMessage } from "../../../utility/handleCallback";
 import { firestore } from "../../../services/firebaseService";
 import { ReconnectRoomArgs } from "./ReconnectRoomTypes";
+import { Game } from "../CreateRoom/CreateRoomTypes";
 
 /**
  * Handles a player's attempt to reconnect to an existing game room.
@@ -15,7 +16,7 @@ import { ReconnectRoomArgs } from "./ReconnectRoomTypes";
  *        The socket contains the `userId` in its data, which is used to identify the player.
  * 
  * @param {ReconnectRoomArgs} reconnectRoomArgs - An object containing details about the game the player is reconnecting to.
- * @param {Game} reconnectRoomArgs.game - The game object, which includes the game ID, player details, and game state.
+ * @param {string} reconnectRoomArgs.gameId - The game ID to reconnect to.
  * 
  * @param {Function} callback - A callback function to be executed once the reconnection process is complete.
  *        The callback receives three arguments:
@@ -23,38 +24,73 @@ import { ReconnectRoomArgs } from "./ReconnectRoomTypes";
  *        - a message (`string`),
  *        - an optional updated `ReconnectRoomArgs` object.
  * 
- * @throws {Error} If the `game` argument is missing or if the game document does not exist in Firestore.
+ * @throws {Error} If the `gameId` argument is missing or if the game document does not exist in Firestore.
  * 
  * @returns {Promise<void>} Resolves when the player is successfully reconnected to the game room or an error is handled.
  */
 export const handleReconnectRoom = async (
-    socket: Socket,
-    reconnectRoomArgs: ReconnectRoomArgs,
-    callback: Function,
+  socket: Socket,
+  reconnectRoomArgs: ReconnectRoomArgs,
+  callback: Function
 ): Promise<void> => {
+  const userId = socket.data.userId;
+  const gameId = reconnectRoomArgs.gameId;
+
   try {
-    const userId = socket.data.userId;
-    
-    if (!reconnectRoomArgs.game) throw Error("Missing game arguments");
+    if(!gameId) throw new Error("Missing game ID");
 
-    socket.data.gameId = reconnectRoomArgs.game.gameId;
-    await socket.join(reconnectRoomArgs.game.gameId);
+    const gameRef = firestore.collection('games').doc(gameId);
 
-    const gameRef = firestore.collection('games').doc(reconnectRoomArgs.game.gameId);
-    const gameDoc = await gameRef.get();
+    socket.data.gameId = gameId;
+    await socket.join(gameId);
 
-    if (!gameDoc.exists) throw new Error("Game does not exist.")
+    const {updatedGame, updatedPlayer} = await firestore.runTransaction(async (transaction) => {
+      const gameDoc = await transaction.get(gameRef);
+      if (!gameDoc.exists) throw new Error("Game does not exist.");
 
-    const gameData = gameDoc.data();
+      const gameData = gameDoc.data() as Game;
+      if (!gameData) throw new Error("Game information missing.");
 
-    if (gameData?.playerA?.userId === userId) {
-        await gameRef.update({ 'playerA.connected': true });
-    } else if (gameData?.playerB?.userId === userId) {
-        await gameRef.update({ 'playerB.connected': true });
+      let updatedPlayer = null;
+      if (gameData.playerA.userId === userId) {
+        updatedPlayer = 'playerA';
+        gameData.playerA.connected = true;
+        transaction.update(gameRef, { 'playerA.connected': true });
+      } else if (gameData.playerB.userId === userId) {
+        updatedPlayer = 'playerB';
+        gameData.playerB.connected = true;
+        transaction.update(gameRef, { 'playerB.connected': true });
+      } else {
+        throw new Error("Player not found in this game.");
+      }
+
+      return {updatedGame: gameData, updatedPlayer};
+    });
+
+    const success = await new Promise<boolean>((resolve) => {
+      socket.timeout(3000).broadcast.to(gameId).emit('roomReconnected', {game: updatedGame, connectUserId: updatedPlayer}, (error: any, response: any) => {
+        console.log("room reconnected:",error, response);
+        if(updatedGame.playerA.connected && updatedGame.playerB.connected){
+          if (error || !response || response.length !== 1 || !response[0]?.message) {
+            resolve(false);
+          } else {
+            resolve(true);
+          }
+        } else {
+          resolve(true);
+        }
+      });
+    });
+
+    if (!success) {
+      await gameRef.update({ [`${updatedGame.playerA.userId === userId ? 'playerA' : 'playerB'}.connected`]: false });
+      handleCallback(callback, true, "Error broadcasting room reconnected");
+      return;
     }
 
-    handleCallback(callback, false, "Player reconnected successfully", reconnectRoomArgs);
-  } catch (error) {
+    handleCallback(callback, false, "Player reconnected successfully", {game: updatedGame});
+  } catch (error: any) {
+    console.error("Error handling reconnect:", error);
     handleCallback(callback, true, extractErrorMessage(error));
   }
 };

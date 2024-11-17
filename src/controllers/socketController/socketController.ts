@@ -7,6 +7,7 @@ import { handleDisconnect } from './Disconnect/handleDisconnect';
 import { handlePlayerForfeited } from './PlayerForfeit/handlePlayerForfeit';
 import { handleCloseRoom } from './CloseRoom/handleCloseRoom';
 import { handleSendGameMessage } from "./InGameMessage/handleInGameMessage";
+import { handleReconnectRoom } from "./ReconnectRoom/handleReconnectRoom";
 import { authMiddleware } from "../../middleware/authMiddleware";
 import { CreateRoomArgs } from "./CreateRoom/CreateRoomTypes";
 import { AddUserArgs } from "./AddUser/AddUserTypes";
@@ -15,6 +16,7 @@ import { MoveArgs } from "./Move/MoveTypes";
 import { ForfeitArgs } from "./PlayerForfeit/PlayerForfeitTypes";
 import { CloseRoomArgs } from "./CloseRoom/CloseRoomTypes";
 import { InGameMessageArgs } from "./InGameMessage/InGameMessageTypes";
+import { ReconnectRoomArgs } from "./ReconnectRoom/ReconnectRoomTypes";
 
 /**
  * Sets up Socket.IO server event handlers and authentication middleware.
@@ -65,6 +67,7 @@ export const setupSocket = (io: Server): void => {
     socket.on('playerForfeited', (forfeitArgs: ForfeitArgs, callback: Function) => handlePlayerForfeited(socket, forfeitArgs, callback));
     socket.on('closeRoom', (closeRoomArgs: CloseRoomArgs, callback: Function) => handleCloseRoom(io, closeRoomArgs, callback));
     socket.on('sendGameMessage', (inGameMessageArgs: InGameMessageArgs, callback: Function) => handleSendGameMessage(socket, inGameMessageArgs, callback));
+    socket.on('reconnectRoom', (reconnectRoomArgs: ReconnectRoomArgs, callback: Function) => handleReconnectRoom(socket, reconnectRoomArgs, callback))
   });
 };
 

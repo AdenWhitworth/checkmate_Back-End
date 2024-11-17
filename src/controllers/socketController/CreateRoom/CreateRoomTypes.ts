@@ -1,19 +1,23 @@
 /**
  * Represents a player in the game.
  * 
- * @interface Player
+ * @interface InGamePlayer
  * 
- * @property {string} userId - The unique identifier for the player.
+ * @property {string} userId - The unique identifier for the user.
+ * @property {string} playerId - The unique identifier for the player.
  * @property {string} username - The display name of the player.
  * @property {number} elo - The player's Elo rating, used to assess their skill level.
  * @property {boolean | "pending"} connected - Indicates whether the player is currently connected to the game.
  *                                             Can be `true`, `false`, or `"pending"` if the connection is in progress.
+ * @property {"w" | "b"} orientation - Indicates the orientation of the chess board for the player
  */
-export interface Player{
+export interface InGamePlayer{
     userId: string;
+    playerId: string;
     username: string;
     elo: number;
     connected: boolean | "pending";
+    orientation: "w" | "b";
 }
 
 /**
@@ -24,10 +28,9 @@ export interface Player{
  * @property {string} gameId - The unique identifier for the game.
  * @property {Player} playerA - The player who created the game (Player A).
  * @property {Player} playerB - The player who joined the game (Player B).
- * @property {string[]} boardState - An array representing the current state of the game board.
- *                                   Each string represents a piece or an empty space on the board.
- * @property {string[]} moveHistory - An array of moves made during the game, stored as strings.
- * @property {"playerA" | "playerB"} currentTurn - Indicates whose turn it is to make a move.
+ * @property {string} fen - The chess fen string indicating the current board state. 
+ * @property {string[]} history - An array of moves made during the game, stored as strings.
+ * @property {"w" | "b"} currentTurn - Indicates whose turn it is to make a move.
  * @property {"in-progress" | "completed" | "waiting"} status - The current status of the game.
  *                                                              `in-progress` indicates an ongoing game,
  *                                                              `completed` means the game has ended,
@@ -39,11 +42,11 @@ export interface Player{
  */
 export interface Game {
     gameId: string;
-    playerA: Player;
-    playerB: Player;
-    boardState: string[];
-    moveHistory: string[];
-    currentTurn: "playerA" | "playerB";
+    playerA: InGamePlayer;
+    playerB: InGamePlayer;
+    fen: string;
+    history: string[];
+    currentTurn: "w" | "b";
     status: "in-progress" | "completed" | "waiting";
     winner: "playerA" | "playerB" | "draw" | null;
     lastMoveTime: FirebaseFirestore.Timestamp;
@@ -59,6 +62,6 @@ export interface Game {
  * @property {Player} playerB - The player who joins the game room (Player B).
  */
 export interface CreateRoomArgs {
-    playerA: Player,
-    playerB: Player
+    playerA: InGamePlayer,
+    playerB: InGamePlayer
 }

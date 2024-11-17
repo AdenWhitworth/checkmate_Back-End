@@ -10,7 +10,10 @@ import { admin, firestore } from "../../../services/firebaseService";
  * @param {Socket} socket - The Socket.IO socket instance representing the connected client making the move.
  * @param {MoveArgs} moveArgs - An object containing the details of the move and the game information.
  * @param {Game} moveArgs.game - The game object containing the game ID and player details.
- * @param {Object} moveArgs.move - The details of the move being made, such as the piece moved, start and end positions.
+ * @param {Move} moveArgs.move - The details of the move being made, such as the piece moved, start and end positions.
+ * @param {Move[]} moveArgs.history - An array of all the moves made during the game.
+ * @param {string} moveArgs.fen - The current chess fen of the board state.
+ * @param {"w" | "b"} moveArgs.currentTurn - the player whose turn it is.
  * @param {Function} callback - A callback function to be executed once the operation is complete.
  *        The callback receives three arguments:
  *        - an error flag (`boolean`),
@@ -29,10 +32,10 @@ export const handleMove = async (
   callback: Function
 ): Promise<void> => {
   try {
-    const { game, move } = moveArgs;
+    const { game, move, history, fen, currentTurn } = moveArgs;
 
-    if (!game || !game.gameId || !move) {
-      throw new Error('Invalid move data');
+    if (!game || !game.gameId || !move || !fen || !history || !currentTurn) {
+      throw new Error("Invalid move data");
     }
 
     const gameRef = firestore.collection('games').doc(game.gameId);
@@ -64,9 +67,12 @@ export const handleMove = async (
           const gameData = gameDoc.data();
           if (!gameData) throw new Error('Game data is missing');
 
-          const updatedMoveHistory = [...(gameData.moveHistory || []), move];
+          const serializedHistory = history.map((move) => JSON.stringify(move));
+
           transaction.update(gameRef, {
-            moveHistory: updatedMoveHistory,
+            history: serializedHistory,
+            fen: fen,
+            currentTurn: currentTurn,
             lastMoveTime: admin.firestore.Timestamp.now(),
           });
         });

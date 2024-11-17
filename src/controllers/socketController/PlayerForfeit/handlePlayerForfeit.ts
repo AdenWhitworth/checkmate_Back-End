@@ -1,6 +1,7 @@
 import { Socket } from "socket.io";
 import { handleCallback, extractErrorMessage } from "../../../utility/handleCallback";
 import { ForfeitArgs, CallbackResponsePlayerForfeit } from "./PlayerForfeitTypes";
+import { firestore, admin } from "../../../services/firebaseService";
 
 /**
  * Handles the event of a player forfeiting a game by broadcasting the forfeit message to all other clients
@@ -13,7 +14,7 @@ import { ForfeitArgs, CallbackResponsePlayerForfeit } from "./PlayerForfeitTypes
  * 
  * @param {ForfeitArgs} forfeitArgs - An object containing the details of the forfeit event.
  * @param {Game} forfeitArgs.game - The game object containing the game ID and player information.
- * @param {Player} forfeitArgs.player - The player who is forfeiting the game, including their userId and username.
+ * @param {Player} forfeitArgs.username - The username of the player who is forfeiting the game.
  * 
  * @param {Function} callback - A callback function to be executed once the forfeit operation is complete.
  *        The callback receives two arguments:
@@ -33,25 +34,34 @@ export const handlePlayerForfeited = async (
   forfeitArgs: ForfeitArgs,
   callback: Function
 ): Promise<void> => {
+  const { game, username } = forfeitArgs;
+  
   try {
-    socket.timeout(1000).broadcast.to(forfeitArgs.game.gameId).emit("playerForfeited", forfeitArgs, (error: any, response: CallbackResponsePlayerForfeit[]) => {
-      if (error) {
+    if(!game || !username) throw new Error("Missing game or username.")
+    
+    const isPlayerA = game.playerA.username === username;
+
+    const userRef = firestore.collection('users').doc(isPlayerA? game.playerA.userId : game.playerB.userId);
+
+    await firestore.runTransaction(async (transaction) => {
+      const userDoc = await transaction.get(userRef);
+
+      if (!userDoc.exists) {
+        throw new Error('User not found');
+      }
+      
+      transaction.update(userRef, {
+        currentGameId: admin.firestore.FieldValue.delete(),
+      });
+    });
+
+    socket.timeout(1000).broadcast.to(forfeitArgs.game.gameId).emit("playerForfeited", forfeitArgs, async (error: any, response: CallbackResponsePlayerForfeit[]) => {
+      if (error || !response || response.length !== 1 || !response[0]?.message) {
+        await userRef.update({ currentGameId: game.gameId });
         handleCallback(callback, true, "Error broadcasting player forfeited");
         return;
       }
-
-      if (response.length !== 1) {
-        handleCallback(callback, true, "Unexpected number of responses");
-        return;
-      }
-    
       const res = response[0];
-    
-      if (!res || !res.message) {
-        handleCallback(callback, true, "Empty or invalid response");
-        return;
-      }
-      
       handleCallback(callback, false, res.message);
     });
   } catch (error) {

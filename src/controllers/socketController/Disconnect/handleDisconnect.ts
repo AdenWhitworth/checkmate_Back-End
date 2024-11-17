@@ -1,5 +1,7 @@
 import { Socket } from "socket.io";
 import { firestore } from "../../../services/firebaseService";
+import { DisconnectArgs } from "./DisconnectTypes";
+import { Game } from "../CreateRoom/CreateRoomTypes";
 
 /**
  * Handles the disconnection of a player by updating their connection status in the Firestore database
@@ -24,13 +26,24 @@ export const handleDisconnect = async (
     const gameDoc = await gameRef.get();
 
     if (gameDoc.exists) {
-      const gameData = gameDoc.data();
+      const gameData = gameDoc.data() as Game;
+
+      if (!gameData) throw new Error("Game information missing.");
       
-      if (gameData?.playerA?.userId === userId) {
+      if (gameData.playerA.userId === userId) {
         await gameRef.update({ 'playerA.connected': false });
-      } else if (gameData?.playerB?.userId === userId) {
+        gameData.playerA.connected = false;
+      } else if (gameData.playerB.userId === userId) {
         await gameRef.update({ 'playerB.connected': false });
+        gameData.playerB.connected = false;
       }
+
+      const disconnectArgs: DisconnectArgs = {
+        game: gameData,
+        disconnectUserId: userId
+      }
+
+      socket.broadcast.to(gameId).emit("playerDisconnected", disconnectArgs);
     }
   }
 };

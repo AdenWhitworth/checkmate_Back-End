@@ -52,8 +52,8 @@ const calculateNewRatings = (
     scoreA = scoreB = 0.5;
   }
 
-  const newRatingA = ratingA + KA * (scoreA - expectedScoreA);
-  const newRatingB = ratingB + KB * (scoreB - expectedScoreB);
+  const newRatingA = Math.ceil(ratingA + KA * (scoreA - expectedScoreA));
+  const newRatingB = Math.ceil(ratingB + KB * (scoreB - expectedScoreB));
 
   return { newRatingA, newRatingB };
 };
@@ -72,8 +72,11 @@ export const updateGameResult = async (
   game: Game
 ): Promise<void> => {
   const gameRef = firestore.collection('games').doc(game.gameId);
-  const playerARef = firestore.collection('players').doc(game.playerA.userId);
-  const playerBRef = firestore.collection('players').doc(game.playerB.userId);
+  const playerAUsersRef = firestore.collection('users').doc(game.playerA.userId);
+  const playerBUsersRef = firestore.collection('users').doc(game.playerB.userId);
+  
+  const playerAPlayersRef = firestore.collection('players').doc(game.playerA.playerId);
+  const playerBPlayersRef = firestore.collection('players').doc(game.playerB.playerId);
 
   try {
     await firestore.runTransaction(async (transaction) => {
@@ -83,8 +86,8 @@ export const updateGameResult = async (
       const gameData = gameDoc.data();
       if (gameData?.status === 'completed') return;
 
-      const playerADoc = await transaction.get(playerARef);
-      const playerBDoc = await transaction.get(playerBRef);
+      const playerADoc = await transaction.get(playerAUsersRef);
+      const playerBDoc = await transaction.get(playerBUsersRef);
 
       if (!playerADoc.exists || !playerBDoc.exists) {
         throw new Error('Player not found');
@@ -96,29 +99,34 @@ export const updateGameResult = async (
       if (!gameData || !playerAData || !playerBData || !game) {
         throw new Error('Game or player data is undefined');
       }
-
-      const ratingA = playerAData.rating ?? 1200;
+      
+      const ratingA = playerAData.elo ?? 1200;
       const gamesPlayedA = playerAData.gamesPlayed ?? 0;
-      const ratingB = playerBData.rating ?? 1200;
+      const ratingB = playerBData.elo ?? 1200;
       const gamesPlayedB = playerBData.gamesPlayed ?? 0;
 
       const { newRatingA, newRatingB } = calculateNewRatings(ratingA, gamesPlayedA, ratingB, gamesPlayedB, game);
 
-      transaction.update(playerARef, {
-        rating: newRatingA,
+      transaction.update(playerAUsersRef, {
+        elo: newRatingA,
         gamesPlayed: admin.firestore.FieldValue.increment(1),
-        ...(game.winner === "playerA" && { wins: admin.firestore.FieldValue.increment(1) }),
-        ...(game.winner === "playerB" && { losses: admin.firestore.FieldValue.increment(1) }),
-        ...(game.winner === "draw" && { draws: admin.firestore.FieldValue.increment(1) })
+        currentGameId: admin.firestore.FieldValue.delete(),
+        ...(game.winner === "playerA" && { win: admin.firestore.FieldValue.increment(1) }),
+        ...(game.winner === "playerB" && { loss: admin.firestore.FieldValue.increment(1) }),
+        ...(game.winner === "draw" && { draw: admin.firestore.FieldValue.increment(1) })
       });
 
-      transaction.update(playerBRef, {
-        rating: newRatingB,
+      transaction.update(playerBUsersRef, {
+        elo: newRatingB,
         gamesPlayed: admin.firestore.FieldValue.increment(1),
-        ...(game.winner === "playerB" && { wins: admin.firestore.FieldValue.increment(1) }),
-        ...(game.winner === "playerA" && { losses: admin.firestore.FieldValue.increment(1) }),
-        ...(game.winner === "draw" && { draws: admin.firestore.FieldValue.increment(1) })
+        currentGameId: admin.firestore.FieldValue.delete(),
+        ...(game.winner === "playerB" && { win: admin.firestore.FieldValue.increment(1) }),
+        ...(game.winner === "playerA" && { loss: admin.firestore.FieldValue.increment(1) }),
+        ...(game.winner === "draw" && { draw: admin.firestore.FieldValue.increment(1) })
       });
+
+      transaction.update(playerAPlayersRef, {elo: newRatingA});
+      transaction.update(playerBPlayersRef, {elo: newRatingB});
 
       transaction.update(gameRef, { status: 'completed', winner: game.winner });
     });

@@ -1,5 +1,13 @@
 import { Game } from "../CreateRoom/CreateRoomTypes";
 
+export interface Opponent {
+    opponentUsername: string;
+    opponentUserId: string;
+    opponentPlayerId: string;
+    opponentElo: number;
+    opponentInviteId?: string;
+}
+
 /**
  * Represents the arguments required to close a room.
  * 
@@ -10,4 +18,5 @@ import { Game } from "../CreateRoom/CreateRoomTypes";
 export interface CloseRoomArgs {
     game: Game;
     inviteCancelled: boolean;
+    opponent?: Opponent;
 };

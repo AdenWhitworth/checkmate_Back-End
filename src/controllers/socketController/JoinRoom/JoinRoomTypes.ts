@@ -6,11 +6,10 @@ import { Game } from "../CreateRoom/CreateRoomTypes";
  * 
  * @interface JoinRoomArgs
  * 
- * @property {Game} game - The game object containing all relevant information about the game session.
- *                         This includes the game ID, player details, board state, and current game status.
+ * @property {string} gameId - The gameId for the game being joined.
  */
 export interface JoinRoomArgs {
-    game: Game;
+    gameId: string;
 }
 
 /**
@@ -23,3 +22,12 @@ export interface JoinRoomArgs {
 export interface CallbackResponseJoinRoom {
     message: string;
 }
+
+/**
+ * Represents the arguments required by the opponent joining the game.
+ * @interface CloseRoomArgs
+ * @property {Game} game - The game joined by the opponent.
+ */
+export interface OpponentJoinedArgs {
+    game: Game, 
+};

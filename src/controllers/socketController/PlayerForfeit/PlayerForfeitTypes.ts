@@ -1,4 +1,4 @@
-import { Game, Player } from "../CreateRoom/CreateRoomTypes";
+import { Game } from "../CreateRoom/CreateRoomTypes";
 
 /**
  * Represents the arguments required when a player forfeits a game.
@@ -7,13 +7,11 @@ import { Game, Player } from "../CreateRoom/CreateRoomTypes";
  * 
  * @property {Game} game - The game object associated with the forfeited game. 
  *                         This includes details such as the game ID, players, board state, current status, and move history.
- * 
- * @property {Player} player - The player who is forfeiting the game. 
- *                             This includes details like the player's userId, username, Elo rating, and connection status.
+ * @property {string} username - Username of the player forfeiting.
  */
 export interface ForfeitArgs {
     game: Game;
-    player: Player;
+    username: string;
 }
 
 /**

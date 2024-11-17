@@ -38,6 +38,7 @@ export const handleCreateRoom = async (
 
     const gameId = uuidV4();
     const gameRef = firestore.collection('games').doc(gameId);
+    const userRef = firestore.collection('users').doc(socket.data.userId);
 
     const gameDoc = await gameRef.get();
     if (gameDoc.exists) {
@@ -51,29 +52,42 @@ export const handleCreateRoom = async (
       gameId,
       playerA: {
         userId: createRoomArgs.playerA.userId,
+        playerId: createRoomArgs.playerA.playerId,
         username: createRoomArgs.playerA.username,
         elo: createRoomArgs.playerA.elo,
+        orientation: "w",
         connected: true,
       },
       playerB: {
         userId: createRoomArgs.playerB.userId,
+        playerId: createRoomArgs.playerB.playerId,
         username: createRoomArgs.playerB.username,
         elo: createRoomArgs.playerB.elo,
+        orientation: "b",
         connected: false,
       },
-      boardState: [],
-      moveHistory: [],
-      currentTurn: "playerA",
+      fen: "start",
+      history: [],
+      currentTurn: "w",
       status: "in-progress",
       winner: null,
       lastMoveTime: admin.firestore.Timestamp.now(),
       createdAt: admin.firestore.Timestamp.now(),
     };
 
-    await gameRef.set(initialGameData);
+    await firestore.runTransaction(async (transaction) => {
+      const gameDoc = await transaction.get(gameRef);
+      if (gameDoc.exists) {
+        throw new Error("Game with this ID already exists.");
+      }
+
+      transaction.set(gameRef, initialGameData);
+      transaction.update(userRef, { currentGameId: gameId });
+    });
 
     handleCallback(callback, false, "Game successfully created", { game: initialGameData});
   } catch (error) {
+    console.log(error);
     handleCallback(callback, true, extractErrorMessage(error));
   }
 };

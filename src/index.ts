@@ -4,7 +4,7 @@ import http from "http";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { setupSocket } from "./controllers/socketController/socketController";
-import { errorHandler } from "./utility/errorhandler";
+import { errorHandler } from "./utility/errorHandler";
 
 /**
  * Initializes and configures an Express application with Socket.IO, CORS, rate limiting, and error handling.
