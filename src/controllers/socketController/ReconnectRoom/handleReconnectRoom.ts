@@ -69,7 +69,6 @@ export const handleReconnectRoom = async (
 
     const success = await new Promise<boolean>((resolve) => {
       socket.timeout(3000).broadcast.to(gameId).emit('roomReconnected', {game: updatedGame, connectUserId: updatedPlayer}, (error: any, response: any) => {
-        console.log("room reconnected:",error, response);
         if(updatedGame.playerA.connected && updatedGame.playerB.connected){
           if (error || !response || response.length !== 1 || !response[0]?.message) {
             resolve(false);
@@ -90,7 +89,6 @@ export const handleReconnectRoom = async (
 
     handleCallback(callback, false, "Player reconnected successfully", {game: updatedGame});
   } catch (error: any) {
-    console.error("Error handling reconnect:", error);
     handleCallback(callback, true, extractErrorMessage(error));
   }
 };

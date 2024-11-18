@@ -131,7 +131,6 @@ export const updateGameResult = async (
       transaction.update(gameRef, { status: 'completed', winner: game.winner });
     });
   } catch (error) {
-    console.error('Error updating game result:', error);
     throw new Error('Failed to update game result');
   }
 };

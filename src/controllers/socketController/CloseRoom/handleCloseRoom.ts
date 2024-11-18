@@ -56,7 +56,7 @@ export const handleCloseRoom = async (
         .collection('invites')
         .doc(opponentInviteId);
 
-      const playerAUsersRef = firestore.collection('users').doc(closeRoomArgs.game.playerA.playerId);
+      const playerAUsersRef = firestore.collection('users').doc(closeRoomArgs.game.playerA.userId);
 
       await firestore.runTransaction(async (transaction) => {
         const gameDoc = await transaction.get(gameRef);
@@ -81,7 +81,6 @@ export const handleCloseRoom = async (
 
     handleCallback(callback, false, "Game successfully closed", closeRoomArgs);
   } catch (error) {
-    console.log(error);
     handleCallback(callback, true, extractErrorMessage(error));
   }
 };

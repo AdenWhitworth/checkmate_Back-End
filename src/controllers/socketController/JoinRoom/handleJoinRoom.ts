@@ -89,7 +89,6 @@ export const handleJoinRoom = async (
 
     handleCallback(callback, false, "Player B joined successfully", opponentJoinedArgs);
   } catch (error: any) {
-    console.log(error);
     handleCallback(callback, true, extractErrorMessage(error));
   }
 };

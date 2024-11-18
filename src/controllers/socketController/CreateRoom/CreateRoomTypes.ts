@@ -10,6 +10,7 @@
  * @property {boolean | "pending"} connected - Indicates whether the player is currently connected to the game.
  *                                             Can be `true`, `false`, or `"pending"` if the connection is in progress.
  * @property {"w" | "b"} orientation - Indicates the orientation of the chess board for the player
+ * @property {string} [inviteId] - Optional invitation ID for the player invited to join the game.
  */
 export interface InGamePlayer{
     userId: string;
@@ -18,6 +19,7 @@ export interface InGamePlayer{
     elo: number;
     connected: boolean | "pending";
     orientation: "w" | "b";
+    inviteId?: string;
 }
 
 /**

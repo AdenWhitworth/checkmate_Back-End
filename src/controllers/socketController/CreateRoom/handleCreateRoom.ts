@@ -38,7 +38,6 @@ export const handleCreateRoom = async (
 
     const gameId = uuidV4();
     const gameRef = firestore.collection('games').doc(gameId);
-    const userRef = firestore.collection('users').doc(socket.data.userId);
 
     const gameDoc = await gameRef.get();
     if (gameDoc.exists) {
@@ -82,12 +81,10 @@ export const handleCreateRoom = async (
       }
 
       transaction.set(gameRef, initialGameData);
-      transaction.update(userRef, { currentGameId: gameId });
     });
 
     handleCallback(callback, false, "Game successfully created", { game: initialGameData});
   } catch (error) {
-    console.log(error);
     handleCallback(callback, true, extractErrorMessage(error));
   }
 };
