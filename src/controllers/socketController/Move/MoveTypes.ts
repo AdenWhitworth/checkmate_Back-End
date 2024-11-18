@@ -1,16 +1,22 @@
-import { Room } from "../../../types/gameTypes"
+import { Game } from "../CreateRoom/CreateRoomTypes";
+import { Move } from "chess.js";
 
 /**
  * Represents the arguments required to broadcast a move within a game room.
  * 
  * @interface MoveArgs
- * 
- * @property {Room} room - The room object where the move is being made. This includes the room's ID and other relevant details.
- * @property {string} move - The details of the move being made, typically represented as a string.
+ * @property {Game} moveArgs.game - The game object containing the game ID and player details.
+ * @property {Move} moveArgs.move - The details of the move being made, such as the piece moved, start and end positions.
+ * @property {Move[]} moveArgs.history - An array of all the moves made during the game.
+ * @property {string} moveArgs.fen - The current chess fen of the board state.
+ * @property {"w" | "b"} moveArgs.currentTurn - the player whose turn it is.
  */
 export interface MoveArgs {
-    room: Room, 
-    move: string
+    game: Game; 
+    move: Move;
+    history: Move[];
+    fen: string;
+    currentTurn: "w" | "b";
 };
 
 /**

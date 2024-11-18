@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import admin from "../services/firebaseService";
+import { admin } from "../services/firebaseService";
 
 /**
  * Middleware function to authenticate and authorize a socket connection using Firebase ID tokens.

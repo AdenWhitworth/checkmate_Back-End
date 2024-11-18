@@ -1,15 +1,16 @@
-import { Room } from "../../../types/gameTypes";
+import { Game } from "../CreateRoom/CreateRoomTypes";
 
 /**
  * Represents the arguments required when a player forfeits a game.
  * 
  * @interface ForfeitArgs
  * 
- * @property {Room} room - The room object where the forfeit is occurring, including the room ID and other relevant details.
- * @property {string} username - The username of the player who is forfeiting the game.
+ * @property {Game} game - The game object associated with the forfeited game. 
+ *                         This includes details such as the game ID, players, board state, current status, and move history.
+ * @property {string} username - Username of the player forfeiting.
  */
 export interface ForfeitArgs {
-    room: Room;
+    game: Game;
     username: string;
 }
 

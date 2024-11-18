@@ -7,11 +7,11 @@ import { AddUserArgs } from "./AddUserTypes";
  * 
  * @param {Socket} socket - The Socket.IO socket instance representing the connected client.
  * @param {AddUserArgs} addUserArgs - An object containing the arguments for adding a user.
- * @param {string} addUserArgs.username - The username to be added.
- * @param {Function} callback - A callback function to be executed once the operation is complete. 
- *        The callback receives two arguments: an error flag (`boolean`) and a message (`string`).
+ * @param {string} addUserArgs.username - The username to be added. Must be a non-empty string.
+ * @param {string} addUserArgs.userId - The unique identifier for the user. Must be a non-empty string.
+ * @param {Function} callback - A callback function to be executed once the operation is complete. The callback receives two arguments: an error flag (`boolean`) and a message (`string`).
  * 
- * @throws {Error} If the provided `username` is invalid or empty.
+ * @throws {Error} If the provided `username` or `userId` is invalid or empty.
  * 
  * @returns {Promise<void>} Resolves when the user is successfully added or an error is handled.
  */
@@ -21,14 +21,22 @@ export const handleAddUser = async (
   callback: Function
 ): Promise<void> => {
   try {
-    if (!addUserArgs.username || addUserArgs.username.trim() === '') {
-      throw new Error('Invalid username');
+    const username = addUserArgs.username;
+    const userId = addUserArgs.userId;
+
+    if (!username || username.trim() === '' || !userId) {
+      throw new Error('Invalid username or userId');
     }
 
-    socket.data.username = addUserArgs.username;
+    if (socket.data.username !== username) {
+      socket.data.username = username;
+    }
+
+    if (socket.data.userId !== userId) {
+      socket.data.userId = userId;
+    }
     handleCallback(callback, false, "Username added");
   } catch (error) {
     handleCallback(callback, true, extractErrorMessage(error));
   }
 };
-  

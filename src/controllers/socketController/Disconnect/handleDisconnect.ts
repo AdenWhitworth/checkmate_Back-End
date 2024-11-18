@@ -1,36 +1,50 @@
 import { Socket } from "socket.io";
-import { Room, Player } from "../../../types/gameTypes";
+import { firestore } from "../../../services/firebaseService";
 import { DisconnectArgs } from "./DisconnectTypes";
+import { Game } from "../CreateRoom/CreateRoomTypes";
 
 /**
- * Handles the disconnection of a player by finding and notifying all rooms where the player was present.
+ * Handles the disconnection of a player by updating their connection status in the Firestore database
+ * and notifying other players in the game room. This function ensures that the game's state remains
+ * consistent when a player disconnects unexpectedly.
  * 
  * @param {Socket} socket - The Socket.IO socket instance representing the disconnecting client.
- * @param {Map<string, Room>} rooms - A map containing all the active rooms, where the key is the room ID and the value is a `Room` object.
  * 
  * @fires socket#playerDisconnected - Emits a "playerDisconnected" event to all other clients in the room when a player disconnects.
  * The event sends an object containing information about the disconnecting player.
  * 
- * @returns {void} This function does not return a value.
+ * @returns {Promise<void>} Resolves when the player's disconnection status is successfully updated in Firestore.
  */
-export const handleDisconnect = (
-  socket: Socket, 
-  rooms: Map<string, Room>
-): void => {
-  const gameRooms = Array.from(rooms.values());
+export const handleDisconnect = async (
+  socket: Socket,
+): Promise<void> => {
+  const gameId = socket.data.gameId;
+  const userId = socket.data.userId;
 
-  gameRooms.forEach((room: Room) => {
+  if (gameId && userId) {
+    const gameRef = firestore.collection('games').doc(gameId);
+    const gameDoc = await gameRef.get();
 
-    const userInRoom: Player | undefined = room.players.find((player: Player) =>player.id === socket.id);
+    if (gameDoc.exists) {
+      const gameData = gameDoc.data() as Game;
 
-    if (userInRoom) {
-
-      const disconnectArgs: DisconnectArgs = {
-        player: userInRoom
+      if (!gameData) throw new Error("Game information missing.");
+      
+      if (gameData.playerA.userId === userId) {
+        await gameRef.update({ 'playerA.connected': false });
+        gameData.playerA.connected = false;
+      } else if (gameData.playerB.userId === userId) {
+        await gameRef.update({ 'playerB.connected': false });
+        gameData.playerB.connected = false;
       }
 
-      socket.broadcast.to(room.roomId).emit("playerDisconnected", disconnectArgs);
+      const disconnectArgs: DisconnectArgs = {
+        game: gameData,
+        disconnectUserId: userId
+      }
+
+      socket.broadcast.to(gameId).emit("playerDisconnected", disconnectArgs);
     }
-  });
+  }
 };
   

@@ -7,16 +7,16 @@ import { handleDisconnect } from './Disconnect/handleDisconnect';
 import { handlePlayerForfeited } from './PlayerForfeit/handlePlayerForfeit';
 import { handleCloseRoom } from './CloseRoom/handleCloseRoom';
 import { handleSendGameMessage } from "./InGameMessage/handleInGameMessage";
+import { handleReconnectRoom } from "./ReconnectRoom/handleReconnectRoom";
 import { authMiddleware } from "../../middleware/authMiddleware";
-import { Room } from "../../types/gameTypes";
+import { CreateRoomArgs } from "./CreateRoom/CreateRoomTypes";
 import { AddUserArgs } from "./AddUser/AddUserTypes";
 import { JoinRoomArgs } from "./JoinRoom/JoinRoomTypes";
 import { MoveArgs } from "./Move/MoveTypes";
 import { ForfeitArgs } from "./PlayerForfeit/PlayerForfeitTypes";
 import { CloseRoomArgs } from "./CloseRoom/CloseRoomTypes";
 import { InGameMessageArgs } from "./InGameMessage/InGameMessageTypes";
-
-const rooms = new Map<string, Room>();
+import { ReconnectRoomArgs } from "./ReconnectRoom/ReconnectRoomTypes";
 
 /**
  * Sets up Socket.IO server event handlers and authentication middleware.
@@ -60,13 +60,14 @@ export const setupSocket = (io: Server): void => {
 
   io.on("connection", (socket: Socket) => {
     socket.on('addUser', (addUserArgs: AddUserArgs, callback: Function) => handleAddUser(socket, addUserArgs, callback));
-    socket.on('createRoom', (callback: Function) => handleCreateRoom(socket, callback, rooms));
-    socket.on('joinRoom', (joinRoomArgs: JoinRoomArgs, callback: Function) => handleJoinRoom(socket, joinRoomArgs, callback, rooms));
-    socket.on('sendMove', (moveArgs: MoveArgs, callback: Function) => handleMove(io, socket, rooms, moveArgs, callback));
-    socket.on('disconnect', () => handleDisconnect(socket, rooms));
+    socket.on('createRoom', (createRoomArgs: CreateRoomArgs, callback: Function) => handleCreateRoom(socket, createRoomArgs, callback));
+    socket.on('joinRoom', (joinRoomArgs: JoinRoomArgs, callback: Function) => handleJoinRoom(socket, joinRoomArgs, callback));
+    socket.on('sendMove', (moveArgs: MoveArgs, callback: Function) => handleMove(socket, moveArgs, callback));
+    socket.on('disconnect', () => handleDisconnect(socket));
     socket.on('playerForfeited', (forfeitArgs: ForfeitArgs, callback: Function) => handlePlayerForfeited(socket, forfeitArgs, callback));
-    socket.on('closeRoom', (closeRoomArgs: CloseRoomArgs, callback: Function) => handleCloseRoom(io, closeRoomArgs, callback, rooms));
+    socket.on('closeRoom', (closeRoomArgs: CloseRoomArgs, callback: Function) => handleCloseRoom(io, closeRoomArgs, callback));
     socket.on('sendGameMessage', (inGameMessageArgs: InGameMessageArgs, callback: Function) => handleSendGameMessage(socket, inGameMessageArgs, callback));
+    socket.on('reconnectRoom', (reconnectRoomArgs: ReconnectRoomArgs, callback: Function) => handleReconnectRoom(socket, reconnectRoomArgs, callback))
   });
 };
 
