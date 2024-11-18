@@ -12,7 +12,7 @@ import { Request, Response, NextFunction } from "express";
  * and sends a JSON response with an error message. If the error object does not have a `statusCode`, a default value of 500 (Internal Server Error) is used. 
  * Similarly, if the error object does not have a `message`, a default error message is used.
  * 
- * @returns {void} Sends a JSON response with the error status code and message.
+ * @returns {void} Sends a JSON response with the error status code and message. 
  */
 export function errorHandler(err: any, req: Request, res: Response, next: NextFunction) {
   const statusCode = err.statusCode || 500;
