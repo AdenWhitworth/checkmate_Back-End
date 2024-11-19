@@ -43,8 +43,9 @@ Try out the app using the following demo accounts:
 - **WebSocket-Based Real-Time Gameplay**: Engage in real-time chess games with your friends using WebSocket-based updates for a seamless experience.
 - **User Authentication & Authorization**: Handle secure login, registration, and user management with JWT-based authentication.
 - **Matchmaking & Game Room Management**: Create, join, and manage game rooms, making it easy to start games with friends.
-- **Player Stats & Ranking System**: Track player performance and compare rankings with friends, updating results in real-time.
+- **Player Stats & Ranking System**: Track player performance and compare ELO rankings with friends, updating results in real-time.
 - **In-Game Chat Support**: Use real-time chat to communicate with your opponent during matches.
+- **Game Persistence**: Stay in the game, even if you loose connection, with a reliable rejoin feature.
 
 ## Technologies Used
 
@@ -146,6 +147,7 @@ The backend provides a set of WebSocket endpoints to interact with the system in
   - `/recieveMove`: Recieve chess moves from the opponent.
   - `/playerForfeited`: Notify the other player of a forfeit.
   - `/closeRoom`: Close the room when the game is finished.
+  - `/reconnectRoom`: Reconnect to an active game
 - Chat Routes
   - `/sendGameMessage`: Send a chat message to the opponent during a game.
   - `/receiveGameMessage`: Recieve a chat message to the opponent during a game.
@@ -155,35 +157,66 @@ The backend provides a set of WebSocket endpoints to interact with the system in
 
 ## Database Structure
 
-The application uses Firebase Firestore to store user data and game information. Below is the structure of the **users** and **players** collections:
+The application uses Firebase Firestore to store user data and game information. Below is the structure of the **users**, **players**, and **games** collections:
 
 ```json
 {
   "users": {
     "$userID": {
-      "email": "$email",             // User's email
-      "loss": "$loss",               // Number of losses
-      "playerID": "$playerID",       // Player's unique ID
-      "rank": "$rank",               // Player's rank
-      "uuid": "$uuid",               // Universally Unique Identifier
-      "username": "$username",       // User's display name
-      "win": "$win",                 // Number of wins
+      "email": "$email",                 // User's email
+      "loss": "$loss",                   // Number of losses
+      "elo": "$elo",                     // Elo rank of the player
+      "uuid": "$uuid",                   // Universally Unique Identifier
+      "username": "$username",           // User's display name
+      "win": "$win",                     // Number of wins
+      "draw": "$draw",                   // Number of draws
+      "gamesPlayed": "$gamesPlayed",     // Number of games played by the player
       "invites": {
         "$inviteID": {
-          "requestLoss": "$requestLoss",           // Requester's loss count
-          "requestPlayerID": "$requestPlayerID",   // Requester's player ID
-          "requestRoom": "$requestRoom",           // Room associated with the request
-          "requestUserID": "$requestUserID",       // Requester's user ID
-          "requestUserName": "$requestUserName",   // Requester's username
-          "requestWin": "$requestWin"              // Requester's win count
+          "inviteId": "$inviteId",                 // Invitation ID
+          "requestPlayerId": "$requestPlayerId",   // Requester's player ID
+          "requestGameId": "$requestGameId",       // Game ID for the requester's active game
+          "requestUserId": "$requestUserId",       // Requester's user ID
+          "requestUsername": "$requestUsername",   // Requester's username
+          "requestElo": "$requestElo"              // Requester's ELO rank
         }
       }
     }
   },
   "players": {
-    "$playerID": {
-      "userID": "$userID",             // User ID of the player
-      "username": "$username"          // Username of the player
+    "$playerId": {
+      "userId": "$userId",             // User ID of the player
+      "username": "$username",         // Username of the player
+      "elo": "$elo",                   // Elo rank of the player
+    }
+  },
+  "games": {
+    "$gameId": {                               
+      "createdAt": "$createdAt",               // Timestamp of when the game was created
+      "currentTurn": "$currentTurn",           // Indicates whose turn it is ("w" for white, "b" for black)
+      "fen": "$fen",                           // FEN (Forsyth-Edwards Notation) string representing the board state
+      "gameId": "$gameId",                     // Unique identifier for the game
+      "history": ["$move1", "$move2", "..."],  // Array of moves made during the game
+      "lastMoveTime": "$lastMoveTime",         // Timestamp of when the last move was made
+      "playerA": {                             
+        "userId": "$userId",                   // User ID of player A
+        "playerId": "$playerId",               // Player ID of player A
+        "username": "$username",               // Username of player A
+        "elo": "$elo",                         // Elo rank of player A
+        "connected": "$connected",             // Connection status of player A (true, false, or "pending")
+        "orientation": "$orientation"          // Board orientation of player A ("w" or "b")
+      },
+      "playerB": {                             
+        "userId": "$userId",                   // User ID of player B
+        "playerId": "$playerId",               // Player ID of player B
+        "username": "$username",               // Username of player B
+        "elo": "$elo",                         // Elo rank of player B
+        "connected": "$connected",             // Connection status of player B (true, false, or "pending")
+        "orientation": "$orientation",         // Board orientation of player B ("w" or "b")
+        "inviteId": "$inviteId"                // Optional invitation ID for player B
+      },
+      "status": "$status",                     // Current status of the game ("in-progress", "completed", or "waiting")
+      "winner": "$winner"                      // Winner of the game ("playerA", "playerB", "draw", or null if ongoing)
     }
   }
 }
