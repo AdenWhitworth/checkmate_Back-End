@@ -5,7 +5,7 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { setupSocket } from "./controllers/socketController/socketController";
 import { errorHandler } from "./utility/errorhandler";
-
+import { preloadModels } from "./chessBot/handleModels";
 
 /**
  * Initializes and configures an Express application with Socket.IO, CORS, rate limiting, and error handling.
@@ -69,7 +69,15 @@ setupSocket(io);
 
 app.use(errorHandler);
 
-const port = process.env.PORT || 8080;
-server.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+(async () => {
+  try {
+    await preloadModels();
+    const port = process.env.PORT || 8080;
+    server.listen(port, () => {
+      console.log(`Server is running on port ${port}`);
+    });
+  } catch (error) {
+    console.error("Server startup failed:", error);
+    process.exit(1);
+  }
+})();
