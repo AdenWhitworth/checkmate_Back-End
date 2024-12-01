@@ -1,36 +1,71 @@
 import * as ort from "onnxruntime-node";
 import fs from "fs";
 
+import path from "path";
+
+/**
+ * Paths to the ONNX model files based on ELO ranges.
+ * @type {Record<string, string>}
+ * @property {"less_1000"} - Path to the model for ELO < 1000.
+ * @property {"1000_1500"} - Path to the model for ELO between 1000 and 1500.
+ * @property {"1500_2000"} - Path to the model for ELO between 1500 and 2000.
+ * @property {"greater_2000"} - Path to the model for ELO > 2000.
+ */
 const modelPaths: Record<string, string> = {
-    "less_1000": "./onnx_models/less_1000_model.onnx",
-    "1000_1500": "./onnx_models/1000_1500_model.onnx",
-    "1500_2000": "./onnx_models/1500_2000_model.onnx",
-    "greater_2000": "./onnx_models/greater_2000_model.onnx",
+  "less_1000": path.resolve(__dirname, "./onnx_models/less_1000_model.onnx"),
+  "1000_1500": path.resolve(__dirname, "./onnx_models/1000_1500_model.onnx"),
+  "1500_2000": path.resolve(__dirname, "./onnx_models/1500_2000_model.onnx"),
+  "greater_2000": path.resolve(__dirname, "./onnx_models/greater_2000_model.onnx"),
 };
 
 const modelSessions: Record<string, ort.InferenceSession> = {};
 
+/**
+ * Validates the existence of ONNX model files in the specified paths.
+ *
+ * @function validateModelPaths
+ * @description Logs warnings for any missing model files and confirms paths for existing files.
+ * @returns {void}
+ */
 function validateModelPaths() {
-    for (const [name, path] of Object.entries(modelPaths)) {
-      if (!fs.existsSync(path)) {
-        console.warn(`Warning: Model file not found at path: ${path} (model: ${name})`);
-      }
-    }
-}
-
-export async function preloadModels(): Promise<void> {
-    validateModelPaths();
-    try {
-      modelSessions["less_1000"] = await ort.InferenceSession.create(modelPaths.less_1000);
-      modelSessions["1000_1500"] = await ort.InferenceSession.create(modelPaths["1000_1500"]);
-      modelSessions["1500_2000"] = await ort.InferenceSession.create(modelPaths["1500_2000"]);
-      modelSessions["greater_2000"] = await ort.InferenceSession.create(modelPaths.greater_2000);
-      console.log("All models preloaded successfully.");
-    } catch (error) {
-      throw new Error("Failed to preload models.");
+  console.log("Current working directory:", process.cwd());
+  for (const [name, path] of Object.entries(modelPaths)) {
+    if (!fs.existsSync(path)) {
+      console.warn(`Warning: Model file not found for ${name}. Expected path: ${path}`);
+    } else {
+      console.log(`Model file found for ${name} at path: ${path}`);
     }
   }
+}
 
+/**
+ * Preloads ONNX model files into inference sessions for efficient access during runtime.
+ *
+ * @async
+ * @function preloadModels
+ * @description This function validates model paths and creates inference sessions for all available models.
+ * @returns {Promise<void>} Resolves when all models have been preloaded or errors have been logged.
+ */
+export async function preloadModels(): Promise<void> {
+  validateModelPaths();
+  for (const [name, path] of Object.entries(modelPaths)) {
+    try {
+      modelSessions[name] = await ort.InferenceSession.create(path);
+      console.log(`Model ${name} successfully preloaded.`);
+    } catch (error) {
+      console.error(`Failed to load model ${name} from path ${path}:`, error);
+    }
+  }
+}
+
+/**
+ * Retrieves the preloaded ONNX inference session based on the bot's difficulty level.
+ *
+ * @function getModelSession
+ * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level of the bot.
+ * @returns {ort.InferenceSession} The preloaded ONNX inference session corresponding to the given difficulty.
+ * @throws {Error} Throws an error if the model for the requested difficulty has not been preloaded.
+ */
 export function getModelSession(difficulty: "novice" | "intermediate" | "advanced" | "master"): ort.InferenceSession {
     if (difficulty === "novice") return modelSessions["less_1000"]
     if (difficulty === "intermediate") return modelSessions["1000_1500"];

@@ -17,34 +17,59 @@ import { ForfeitArgs } from "./PlayerForfeit/PlayerForfeitTypes";
 import { CloseRoomArgs } from "./CloseRoom/CloseRoomTypes";
 import { InGameMessageArgs } from "./InGameMessage/InGameMessageTypes";
 import { ReconnectRoomArgs } from "./ReconnectRoom/ReconnectRoomTypes";
+import { BotMoveArgs } from "./BotMove/BotMoveTypes";
+import { handleBotMove } from "./BotMove/handleBotMove";
+import { CreateBotGameArgs } from "./CreateBotGame/CreateBotGameTypes";
+import { handleCreateBotGame } from "./CreateBotGame/handleCreateBotGame";
+import { MoveHintArgs } from "./MoveHint/MoveHintTypes";
+import { handleMoveHint } from "./MoveHint/handleMoveHint";
+import { CloseBotGameArgs } from "./CloseBotGame/CloseBotGameTypes";
+import { handleCloseBotGame } from "./CloseBotGame/handleCloseBotGames";
+import { ReconnectBotGameArgs } from "./ReconnectBotGame/ReconnectBotGameTypes";
+import { handleReconnectBotGame } from "./ReconnectBotGame/handleReconnectBotGame";
 
 /**
- * Sets up Socket.IO server event handlers and authentication middleware.
+ * Sets up the Socket.IO server with authentication middleware and event handlers.
+ *
+ * @param {Server} io - The Socket.IO server instance to initialize.
+ *
+ * @description This function configures authentication middleware using `authMiddleware` 
+ * and registers event listeners for various socket events:
  * 
- * @param {Server} io - The Socket.IO server instance to set up event listeners and middleware.
- * 
- * @description This function initializes middleware for authentication and defines event handlers for various socket events such as:
- * - `addUser`: To add a new user to a socket connection.
- * - `createRoom`: To create a new room and add the user to it.
- * - `joinRoom`: To join an existing room if not full.
- * - `sendMove`: To broadcast a game move to other players in the room.
- * - `disconnect`: To handle disconnection of a user from a room.
- * - `playerForfeited`: To broadcast a player forfeit event to other players in the room.
- * - `closeRoom`: To close a specified room and remove all users.
- * - `sendGameMessage`: To send an in-game message to other players in the room.
- * 
+ * **Event Handlers:**
+ * - `addUser`: Adds a user to the socket connection.
+ * - `createRoom`: Creates a new room and adds the user.
+ * - `joinRoom`: Joins an existing room if not full.
+ * - `sendMove`: Broadcasts a game move to other players in the room.
+ * - `disconnect`: Handles user disconnection.
+ * - `playerForfeited`: Broadcasts a forfeit event.
+ * - `closeRoom`: Closes a room and removes users.
+ * - `sendGameMessage`: Sends an in-game message to players.
+ * - `reconnectRoom`: Reconnects a player to a room.
+ * - `getBotMove`: Determines the bot's next move.
+ * - `createBotGame`: Creates a new bot game.
+ * - `closeBotGame`: Closes an existing bot game.
+ * - `moveHint`: Provides a hint for the next best move.
+ * - `reconnectBotGame`: Reconnects a player to a bot game.
+ *
  * Middleware:
- * - Uses `authMiddleware` for authorization checks on socket connection.
- * 
- * @fires socket#addUser - Adds a user to the socket connection.
- * @fires socket#createRoom - Creates a new room and adds the user.
- * @fires socket#joinRoom - Joins an existing room if it is not full.
- * @fires socket#sendMove - Broadcasts a game move to other players in the room.
- * @fires socket#disconnect - Handles user disconnection from a room.
- * @fires socket#playerForfeited - Broadcasts a forfeit event to other players in the room.
- * @fires socket#closeRoom - Closes a specified room and removes all users.
- * @fires socket#sendGameMessage - Sends an in-game message to other players in the room.
- * 
+ * - `authMiddleware`: Ensures authorization for socket connections.
+ *
+ * @fires socket#addUser
+ * @fires socket#createRoom
+ * @fires socket#joinRoom
+ * @fires socket#sendMove
+ * @fires socket#disconnect
+ * @fires socket#playerForfeited
+ * @fires socket#closeRoom
+ * @fires socket#sendGameMessage
+ * @fires socket#reconnectRoom
+ * @fires socket#getBotMove
+ * @fires socket#createBotGame
+ * @fires socket#closeBotGame
+ * @fires socket#moveHint
+ * @fires socket#reconnectBotGame
+ *
  * @returns {void} This function does not return any value.
  */
 export const setupSocket = (io: Server): void => {
@@ -67,7 +92,12 @@ export const setupSocket = (io: Server): void => {
     socket.on('playerForfeited', (forfeitArgs: ForfeitArgs, callback: Function) => handlePlayerForfeited(socket, forfeitArgs, callback));
     socket.on('closeRoom', (closeRoomArgs: CloseRoomArgs, callback: Function) => handleCloseRoom(io, closeRoomArgs, callback));
     socket.on('sendGameMessage', (inGameMessageArgs: InGameMessageArgs, callback: Function) => handleSendGameMessage(socket, inGameMessageArgs, callback));
-    socket.on('reconnectRoom', (reconnectRoomArgs: ReconnectRoomArgs, callback: Function) => handleReconnectRoom(socket, reconnectRoomArgs, callback))
+    socket.on('reconnectRoom', (reconnectRoomArgs: ReconnectRoomArgs, callback: Function) => handleReconnectRoom(socket, reconnectRoomArgs, callback));
+    socket.on('getBotMove', (botMoveArgs: BotMoveArgs, callback: Function) => handleBotMove(botMoveArgs, callback));
+    socket.on('createBotGame', (createBotGameArgs: CreateBotGameArgs, callback: Function) => handleCreateBotGame(socket, createBotGameArgs, callback));
+    socket.on('closeBotGame', (closeBotGameArgs: CloseBotGameArgs, callback: Function) => handleCloseBotGame(closeBotGameArgs, callback));
+    socket.on('moveHint', (moveHintArgs: MoveHintArgs, callback: Function) => handleMoveHint(moveHintArgs, callback));
+    socket.on('reconnectBotGame', (reconnectBotGameArgs: ReconnectBotGameArgs, callback: Function) => handleReconnectBotGame(reconnectBotGameArgs, callback));
   });
 };
 
