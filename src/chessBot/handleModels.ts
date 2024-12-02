@@ -10,12 +10,14 @@ import path from "path";
  * @property {"1000_1500"} - Path to the model for ELO between 1000 and 1500.
  * @property {"1500_2000"} - Path to the model for ELO between 1500 and 2000.
  * @property {"greater_2000"} - Path to the model for ELO > 2000.
+ * @property {"base"} - Path to the base model
  */
 const modelPaths: Record<string, string> = {
-  "less_1000": path.resolve(__dirname, "./onnx_models/less_1000_model.onnx"),
-  "1000_1500": path.resolve(__dirname, "./onnx_models/1000_1500_model.onnx"),
-  "1500_2000": path.resolve(__dirname, "./onnx_models/1500_2000_model.onnx"),
-  "greater_2000": path.resolve(__dirname, "./onnx_models/greater_2000_model.onnx"),
+  "less_1000": path.resolve(__dirname, "./onnx_models/model.onnx"),
+  "1000_1500": path.resolve(__dirname, "./onnx_models/model.onnx"),
+  "1500_2000": path.resolve(__dirname, "./onnx_models/model.onnx"),
+  "greater_2000": path.resolve(__dirname, "./onnx_models/model.onnx"),
+  "base": path.resolve(__dirname, "./onnx_models/model.onnx"),
 };
 
 const modelSessions: Record<string, ort.InferenceSession> = {};
@@ -27,7 +29,7 @@ const modelSessions: Record<string, ort.InferenceSession> = {};
  * @description Logs warnings for any missing model files and confirms paths for existing files.
  * @returns {void}
  */
-function validateModelPaths() {
+function validateModelPaths(): void {
   console.log("Current working directory:", process.cwd());
   for (const [name, path] of Object.entries(modelPaths)) {
     if (!fs.existsSync(path)) {
@@ -62,13 +64,13 @@ export async function preloadModels(): Promise<void> {
  * Retrieves the preloaded ONNX inference session based on the bot's difficulty level.
  *
  * @function getModelSession
- * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level of the bot.
+ * @param {"novice" | "intermediate" | "advanced" | "master" | "base"} difficulty - The difficulty level of the bot.
  * @returns {ort.InferenceSession} The preloaded ONNX inference session corresponding to the given difficulty.
  * @throws {Error} Throws an error if the model for the requested difficulty has not been preloaded.
  */
-export function getModelSession(difficulty: "novice" | "intermediate" | "advanced" | "master"): ort.InferenceSession {
-    if (difficulty === "novice") return modelSessions["less_1000"]
-    if (difficulty === "intermediate") return modelSessions["1000_1500"];
-    if (difficulty === "advanced") return modelSessions["1500_2000"];
-    return modelSessions["greater_2000"];
+export function getModelSession(difficulty: "novice" | "intermediate" | "advanced" | "master" | "base"): ort.InferenceSession {
+  if (difficulty === "novice") return modelSessions["less_1000"]
+  if (difficulty === "intermediate") return modelSessions["1000_1500"];
+  if (difficulty === "advanced") return modelSessions["1500_2000"];
+  return modelSessions["base"];
 }

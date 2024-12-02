@@ -1,239 +1,162 @@
 import * as ort from "onnxruntime-node";
-import { Chess, Move, Square, PieceSymbol } from "chess.js";
+import { Chess, Move } from "chess.js";
 import { getModelSession } from "./handleModels";
+import * as path from "path";
+import fs from "fs/promises";
+
+type MoveHistory = string[];
+
+const maxLength = 485;
+let moveToId: { [key: string]: number } | null = null;
+let idToMove: { [key: number]: string } | null = null;
 
 /**
- * Converts a FEN string to a tensor representation of the chess board.
+ * Loads the move-to-ID and ID-to-move mappings from JSON files.
+ * Ensures the mappings are loaded only once and stored globally.
  *
- * @param {string} fen - The FEN string representing the current board state.
- * @returns {ort.Tensor} A tensor representation of the chess board.
+ * @throws {Error} If the mapping files cannot be read or parsed.
  */
-function fenToTensor(fen: string): ort.Tensor {
-  const pieceMap: Record<string, number> = {
-    p: -1, n: -2, b: -3, r: -4, q: -5, k: -6, // Black pieces
-    P: 1, N: 2, B: 3, R: 4, Q: 5, K: 6,      // White pieces
-  };
+async function loadMappings() {
+  if (moveToId && idToMove) return;
 
-  const rows = fen.split(" ")[0].split("/");
-  const boardArray: number[] = [];
+  const moveToIdPath = path.resolve(__dirname, "onnx_models", "move_to_id.json");
+  const idToMovePath = path.resolve(__dirname, "onnx_models", "id_to_move.json");
 
-  for (const row of rows) {
-    for (const char of row) {
-      if (parseInt(char)) {
-        boardArray.push(...Array(parseInt(char)).fill(0));
-      } else {
-        boardArray.push(pieceMap[char]);
-      }
-    }
-  }
-
-  // Convert board array to Float32Array
-  return new ort.Tensor("float32", new Float32Array(boardArray), [1, 8, 8, 1]);
-}
-
-/**
- * Extracts additional features from a FEN string to assist the model in decision-making.
- *
- * @param {string} fen - The FEN string representing the current board state.
- * @returns {ort.Tensor} A tensor containing features such as turn, castling rights, en passant availability, etc.
- */
-function extractFeaturesFromFen(fen: string): ort.Tensor {
-  const parts = fen.split(" ");
-  const turn = parts[1] === "w" ? 1 : 0;
-  const castling = parts[2];
-  const enPassant = parts[3] !== "-" ? parts[3] : null;
-  const halfMoveClock = parseInt(parts[4], 10);
-  const fullMoveNumber = parseInt(parts[5], 10);
-
-  const castlingRights = [
-    castling.includes("K") ? 1 : 0,
-    castling.includes("Q") ? 1 : 0,
-    castling.includes("k") ? 1 : 0,
-    castling.includes("q") ? 1 : 0,
-  ];
-
-  const enPassantFile = enPassant
-    ? enPassant.charCodeAt(0) - "a".charCodeAt(0)
-    : -1;
-
-  const features = [
-    turn,
-    ...castlingRights,
-    enPassantFile,
-    halfMoveClock,
-    fullMoveNumber,
-  ];
-
-  return new ort.Tensor("float32", new Float32Array(features), [1, features.length]);
-}
-
-/**
- * Retrieves the piece type on the chess board from the given FEN string and square.
- *
- * @param {string} fen - The FEN string representing the current board state.
- * @param {number} fromSquare - The square index (0-63) on the board.
- * @returns {string | undefined} The piece type (`"p"`, `"n"`, `"b"`, `"r"`, `"q"`, `"k"`) or `undefined` if no piece is present.
- */
-function getPieceType(fen: string, fromSquare: number): string | undefined {
-  const pieceMap: Record<string, string> = {
-      p: "p", n: "n", b: "b", r: "r", q: "q", k: "k", // Black pieces
-      P: "p", N: "n", B: "b", R: "r", Q: "q", K: "k", // White pieces
-  };
-
-  const rows = fen.split(" ")[0].split("/");
-  const row = rows[Math.floor(fromSquare / 8)];
-  let fileIndex = fromSquare % 8;
-
-  for (const char of row) {
-      if (parseInt(char)) {
-          if (fileIndex < parseInt(char)) {
-              return undefined;
-          }
-          fileIndex -= parseInt(char);
-      } else {
-          if (fileIndex === 0) {
-              return pieceMap[char];
-          }
-          fileIndex--;
-      }
-  }
-
-  return undefined;
-}
-
-/**
- * Converts the model's output tensor into a move object.
- *
- * @param {ort.Tensor} output - The tensor output from the model.
- * @param {string} fen - The FEN string representing the current board state.
- * @param {"w" | "b"} currentTurn - The current turn (`"w"` for white, `"b"` for black).
- * @returns {Move | null} A move object or `null` if the move is invalid.
- */
-function outputToMove(output: ort.Tensor, fen: string, currentTurn: "w" | "b"): Move | null {
-  const moveIndex = output.data[0] as number;
-  const fromSquare = Math.floor(moveIndex / 64);
-  const toSquare = moveIndex % 64;
-
-  const fromFile = String.fromCharCode("a".charCodeAt(0) + (fromSquare % 8));
-  const fromRank = Math.floor(fromSquare / 8) + 1;
-  const toFile = String.fromCharCode("a".charCodeAt(0) + (toSquare % 8));
-  const toRank = Math.floor(toSquare / 8) + 1;
-
-  const from = `${fromFile}${fromRank}`;
-  const to = `${toFile}${toRank}`;
-
-  const promotion = toRank === 8 || toRank === 1 ? "q" : undefined;
-
-  const piece = getPieceType(fen, fromSquare);
-
-  if (!piece) {
-      return null;
-  }
-
-  const moveData: Move = {
-      from: from as Square,
-      to: to as Square,
-      color: currentTurn,
-      piece: piece as PieceSymbol,
-      promotion,
-      flags: "",
-      san: "",
-      lan: "",
-      before: "",
-      after: "",
-  };
-
-  return moveData;
-}
-
-/**
- * Determines the next move for the bot based on a pre-trained ONNX model.
- *
- * @async
- * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level of the bot.
- * @param {string} fen - The FEN string representing the current board state.
- * @param {"w" | "b"} currentTurn - The current turn (`"w"` for white, `"b"` for black).
- * @returns {Promise<Move>} A promise that resolves to the next move for the bot.
- * @throws {Error} Throws an error if the bot cannot determine a valid move or the game state is invalid.
- */
-export async function determineNextBotMove(
-  difficulty: "novice" | "intermediate" | "advanced" | "master",
-  fen: string,
-  currentTurn: "w" | "b"
-): Promise<Move> {
   try {
-    const session = getModelSession(difficulty);
-    const boardTensor = fenToTensor(fen);
-    const featuresTensor = extractFeaturesFromFen(fen);
-    const output = await session.run({
-      board_input: boardTensor,
-      features_input: featuresTensor,
-    });
-    const botMove = outputToMove(output[session.outputNames[0]], fen, currentTurn);
-
-    if (!botMove) {
-      throw new Error("Bot couldn't find a valid move.");
-    }
-
-    return botMove;
+    moveToId = JSON.parse(await fs.readFile(moveToIdPath, "utf-8"));
+    idToMove = JSON.parse(await fs.readFile(idToMovePath, "utf-8"));
+    console.log("Mappings loaded successfully.");
   } catch (error) {
-    console.log(error);
-    return Promise.reject(new Error("Failed to determine the bot's next move."));
+    console.error("Error loading mapping files. Check if the files exist and are accessible.", error);
+    throw new Error("Mapping files could not be loaded.");
   }
 }
 
 /**
- * Determines the next move for the bot using simple heuristics.
+ * Prepares the input tensor for ONNX model inference by converting the move history
+ * into numeric IDs using the provided mapping and padding the sequence to the required length.
  *
- * @async
- * @param {string} fen - The FEN string representing the current board state.
- * @returns {Promise<Move>} A promise that resolves to the next move for the bot.
- * @throws {Error} Throws an error if the game is already over.
+ * @param {MoveHistory} moveHistory - An array of moves in SAN (Standard Algebraic Notation) format.
+ * @param {{ [key: string]: number }} moveToId - A mapping from SAN moves to numeric IDs.
+ * @param {number} maxLength - The maximum sequence length expected by the ONNX model.
+ * @returns {Float32Array} A padded tensor representing the move history in numeric ID format.
  */
-export async function determineNextBotMoveSimple(
-  fen: string,
-): Promise<Move> {
-  const chess = new Chess();
-  chess.load(fen);
+function prepareInput(moveHistory: MoveHistory, moveToId: { [key: string]: number }, maxLength: number): Float32Array {
+  // Convert move history to IDs using moveToId mapping
+  const tokenizedHistory = moveHistory.map((move) => moveToId[move] || 0);
 
-  if (chess.isGameOver()) {
-    throw new Error("Game is already over!");
+  // Pad the history to match the model's expected input length
+  const paddedHistory = new Array(maxLength).fill(0);
+  for (let i = 0; i < tokenizedHistory.length; i++) {
+    paddedHistory[i] = tokenizedHistory[i];
   }
 
-  const getGreedyMove = (): Move | null => {
-    const moves = chess.moves({ verbose: true });
-    let bestMove: Move | null = null;
-    let highestValue = 0;
+  return Float32Array.from(paddedHistory);
+}
 
-    const pieceValues: { [key: string]: number } = {
-      p: 1,
-      n: 3,
-      b: 3,
-      r: 5,
-      q: 9,
+/**
+ * Converts a FEN string to a move history array.
+ *
+ * @param fen - The FEN string representing the current board state.
+ * @returns An array of moves in SAN format representing the game history.
+ */
+function verboseToMoveHistory(verboseHistory: Move[]): MoveHistory {
+  return verboseHistory.map((move) => move.san);
+}
+
+/**
+ * Predicts the next chess move based on the provided game history and difficulty level.
+ *
+ * @param {Move[]} history - An array of moves representing the game history in verbose format.
+ * Each move contains properties like `from`, `to`, `color`, `piece`, `san`, etc.
+ * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level for the prediction.
+ * Determines which model to use for the prediction.
+ * @returns {Promise<Move>} A Promise that resolves to a `Move` object representing the predicted move.
+ * The `Move` object includes details like `from`, `to`, `san`, and other metadata about the move.
+ *
+ * @throws {Error} If there is an issue with loading mappings, ONNX session initialization,
+ * model inference, or if no valid move can be determined.
+ */
+export async function predictNextMove(history: Move[], difficulty: "novice" | "intermediate" | "advanced" | "master",): Promise<Move> {
+  try {
+    const moveHistory: MoveHistory = verboseToMoveHistory(history);
+
+    await loadMappings();
+    if (!moveToId || !idToMove) {
+      throw new Error("Mappings not loaded properly.");
+    }
+
+    const session = getModelSession("base");
+    if (!session) {
+      throw new Error("Failed to load ONNX session.");
+    }
+
+    const board = new Chess();
+    for (const move of moveHistory) {
+      board.move(move);
+    }
+
+    const inputTensor = prepareInput(moveHistory, moveToId, maxLength);
+
+    const feeds: Record<string, ort.Tensor> = {
+      args_0: new ort.Tensor("float32", inputTensor, [1, maxLength]),
     };
 
-    for (const move of moves) {
-      if (move.captured) {
-        const value = pieceValues[move.captured.toLowerCase()] || 0;
-        if (value > highestValue) {
-          highestValue = value;
-          bestMove = move;
-        }
+    const results = await session.run(feeds);
+
+    const outputName = session.outputNames[0];
+    if (!results[outputName]) {
+      throw new Error(`Output ${outputName} not found in model results.`);
+    }
+
+    const output = results[outputName].data as Float32Array;
+
+    const moveProbabilities = Array.from(output);
+    const sortedIndices = moveProbabilities
+      .map((prob, idx) => ({ idx, prob }))
+      .sort((a, b) => b.prob - a.prob)
+      .map((entry) => entry.idx);
+
+    const legalMoves = board.moves({ verbose: true });
+
+    for (const predictedMoveId of sortedIndices) {
+      const predictedMoveSAN = idToMove[predictedMoveId];
+      const matchedMove = legalMoves.find((move) => move.san === predictedMoveSAN);
+      if (matchedMove) {
+        console.log("Valid predicted move found:", matchedMove);
+
+        return {
+          from: matchedMove.from,
+          to: matchedMove.to,
+          color: matchedMove.color,
+          piece: matchedMove.piece,
+          promotion: matchedMove.promotion || undefined,
+          flags: matchedMove.flags || "",
+          san: matchedMove.san,
+          lan: matchedMove.lan || "",
+          before: matchedMove.before || "",
+          after: matchedMove.after || "",
+        };
       }
     }
 
-    return bestMove;
-  };
+    console.warn("No valid predicted moves found. Selecting a random legal move.");
+    const randomMove = legalMoves[Math.floor(Math.random() * legalMoves.length)];
 
-  const getRandomMove = (): Move => {
-    const moves = chess.moves({ verbose: true });
-    const randomIndex = Math.floor(Math.random() * moves.length);
-    return moves[randomIndex];
-  };
-
-  const move = getGreedyMove() || getRandomMove();
-  return move;
+    return {
+      from: randomMove.from,
+      to: randomMove.to,
+      color: randomMove.color,
+      piece: randomMove.piece,
+      promotion: randomMove.promotion || undefined,
+      flags: randomMove.flags || "",
+      san: randomMove.san,
+      lan: randomMove.lan || "",
+      before: randomMove.before || "",
+      after: randomMove.after || "",
+    };
+  } catch (error) {
+    console.error("Error during ONNX model inference:", error);
+    throw error;
+  }
 }
-
-

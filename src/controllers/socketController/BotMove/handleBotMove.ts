@@ -1,5 +1,5 @@
 import { Move } from "chess.js";
-import { determineNextBotMove, determineNextBotMoveSimple } from "../../../chessBot/handleBotActions";
+import { predictNextMove } from "../../../chessBot/handleBotActions";
 import { handleCallback, extractErrorMessage } from "../../../utility/handleCallback";
 import { BotMoveArgs } from "./BotMoveTypes";
 import { admin, firestore } from "../../../services/firebaseService";
@@ -24,8 +24,7 @@ export const handleBotMove = async (
 
         const gameRef = firestore.collection('botGames').doc(botGame.gameId);
 
-        //const botMove: Move = await determineNextBotMove(difficulty, fen, currentTurn);
-        const botMove: Move = await determineNextBotMoveSimple(fen);
+        const botMove: Move = await predictNextMove(history, difficulty);
 
         await firestore.runTransaction(async (transaction) => {
             const gameDoc = await transaction.get(gameRef);
