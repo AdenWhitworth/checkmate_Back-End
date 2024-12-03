@@ -1,23 +1,19 @@
 import * as ort from "onnxruntime-node";
 import fs from "fs";
-
 import path from "path";
 
 /**
  * Paths to the ONNX model files based on ELO ranges.
+ * Adjusted to correctly locate the files in the `src` directory.
+ * 
  * @type {Record<string, string>}
- * @property {"less_1000"} - Path to the model for ELO < 1000.
- * @property {"1000_1500"} - Path to the model for ELO between 1000 and 1500.
- * @property {"1500_2000"} - Path to the model for ELO between 1500 and 2000.
- * @property {"greater_2000"} - Path to the model for ELO > 2000.
- * @property {"base"} - Path to the base model
  */
 const modelPaths: Record<string, string> = {
-  "less_1000": path.resolve(__dirname, "./onnx_models/model_elo_0_999.onnx"),
-  "1000_1500": path.resolve(__dirname, "./onnx_models/model_elo_1000_1500.onnx"),
-  "1500_2000": path.resolve(__dirname, "./onnx_models/model_elo_1500_2000.onnx"),
-  "greater_2000": path.resolve(__dirname, "./onnx_models/model_elo_2000_plus.onnx"),
-  "base": path.resolve(__dirname, "./onnx_models/model.onnx"),
+  "less_1000": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_0_999.onnx"),
+  "1000_1500": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_1000_1500.onnx"),
+  "1500_2000": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_1500_2000.onnx"),
+  "greater_2000": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_2000_plus.onnx"),
+  "base": path.resolve(process.cwd(), "src/chessBot/onnx_models/model.onnx"),
 };
 
 const modelSessions: Record<string, ort.InferenceSession> = {};
