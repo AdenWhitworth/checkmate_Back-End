@@ -9,11 +9,11 @@ import path from "path";
  * @type {Record<string, string>}
  */
 const modelPaths: Record<string, string> = {
-  "less_1000": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_0_999.onnx"),
-  "1000_1500": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_1000_1500.onnx"),
-  "1500_2000": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_1500_2000.onnx"),
-  "greater_2000": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_2000_plus.onnx"),
-  "base": path.resolve(process.cwd(), "src/chessBot/onnx_models/model.onnx"),
+  "less_1000": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_0_999_optimized_quantized.onnx"),
+  "1000_1500": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_1000_1500_optimized_quantized.onnx"),
+  "1500_2000": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_1500_2000_optimized_quantized.onnx"),
+  "greater_2000": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_2000_plus_optimized_quantized.onnx"),
+  "base": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_optimized_quantized.onnx"),
 };
 
 const modelSessions: Record<string, ort.InferenceSession> = {};
