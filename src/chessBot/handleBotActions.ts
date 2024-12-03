@@ -86,7 +86,7 @@ export async function predictNextMove(history: Move[], difficulty: "novice" | "i
       throw new Error("Mappings not loaded properly.");
     }
 
-    const session = getModelSession("base");
+    const session = getModelSession(difficulty);
     if (!session) {
       throw new Error("Failed to load ONNX session.");
     }
@@ -123,8 +123,6 @@ export async function predictNextMove(history: Move[], difficulty: "novice" | "i
       const predictedMoveSAN = idToMove[predictedMoveId];
       const matchedMove = legalMoves.find((move) => move.san === predictedMoveSAN);
       if (matchedMove) {
-        console.log("Valid predicted move found:", matchedMove);
-
         return {
           from: matchedMove.from,
           to: matchedMove.to,

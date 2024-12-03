@@ -13,10 +13,10 @@ import path from "path";
  * @property {"base"} - Path to the base model
  */
 const modelPaths: Record<string, string> = {
-  "less_1000": path.resolve(__dirname, "./onnx_models/model.onnx"),
-  "1000_1500": path.resolve(__dirname, "./onnx_models/model.onnx"),
-  "1500_2000": path.resolve(__dirname, "./onnx_models/model.onnx"),
-  "greater_2000": path.resolve(__dirname, "./onnx_models/model.onnx"),
+  "less_1000": path.resolve(__dirname, "./onnx_models/model_elo_0_999.onnx"),
+  "1000_1500": path.resolve(__dirname, "./onnx_models/model_elo_1000_1500.onnx"),
+  "1500_2000": path.resolve(__dirname, "./onnx_models/model_elo_1500_2000.onnx"),
+  "greater_2000": path.resolve(__dirname, "./onnx_models/model_elo_2000_plus.onnx"),
   "base": path.resolve(__dirname, "./onnx_models/model.onnx"),
 };
 
@@ -72,5 +72,6 @@ export function getModelSession(difficulty: "novice" | "intermediate" | "advance
   if (difficulty === "novice") return modelSessions["less_1000"]
   if (difficulty === "intermediate") return modelSessions["1000_1500"];
   if (difficulty === "advanced") return modelSessions["1500_2000"];
+  if (difficulty === "master") return modelSessions["greater_2000"];
   return modelSessions["base"];
 }
