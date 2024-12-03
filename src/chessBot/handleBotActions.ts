@@ -19,8 +19,8 @@ let idToMove: { [key: number]: string } | null = null;
 async function loadMappings() {
   if (moveToId && idToMove) return;
 
-  const moveToIdPath = path.resolve(__dirname, "onnx_models", "move_to_id.json");
-  const idToMovePath = path.resolve(__dirname, "onnx_models", "id_to_move.json");
+  const moveToIdPath = path.resolve(process.cwd(), "src/chessBot/onnx_models/move_to_id.json");
+  const idToMovePath = path.resolve(process.cwd(), "src/chessBot/onnx_models/id_to_move.json");
 
   try {
     moveToId = JSON.parse(await fs.readFile(moveToIdPath, "utf-8"));
