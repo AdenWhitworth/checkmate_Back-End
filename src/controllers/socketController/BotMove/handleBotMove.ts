@@ -46,8 +46,6 @@ export const handleBotMove = async (
             });
         });
 
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
         handleCallback(callback, false, "Successfully determined the bots next move", {botMove});
     } catch (error) {
         handleCallback(callback, true, extractErrorMessage(error));
