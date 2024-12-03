@@ -1,3 +1,4 @@
+import { BotGame } from "../controllers/socketController/CreateBotGame/CreateBotGameTypes";
 import { Game } from "../controllers/socketController/CreateRoom/CreateRoomTypes";
 import { admin, firestore } from "../services/firebaseService";
 
@@ -129,6 +130,50 @@ export const updateGameResult = async (
       transaction.update(playerBPlayersRef, {elo: newRatingB});
 
       transaction.update(gameRef, { status: 'completed', winner: game.winner });
+    });
+  } catch (error) {
+    throw new Error('Failed to update game result');
+  }
+};
+
+/**
+ * Updates the status and results of a bot game in Firestore.
+ *
+ * @param {BotGame} botGame - The bot game object containing game details, including the game ID, players, and winner.
+ * @returns {Promise<void>} Resolves when the game result has been successfully updated in Firestore.
+ * @throws {Error} Throws an error if the game or player data is missing, the game does not exist, or the update fails.
+ */
+export const updateBotGameResult = async (
+  botGame: BotGame
+): Promise<void> => {
+  const gameRef = firestore.collection('botGames').doc(botGame.gameId);
+  const playerAUsersRef = firestore.collection('users').doc(botGame.playerA.userId);
+
+  try {
+    await firestore.runTransaction(async (transaction) => {
+      const gameDoc = await transaction.get(gameRef);
+      if (!gameDoc.exists) throw new Error('Game not found');
+
+      const gameData = gameDoc.data();
+      if (gameData?.status === 'completed') return;
+
+      const playerADoc = await transaction.get(playerAUsersRef);
+
+      if (!playerADoc.exists) {
+        throw new Error('Player not found');
+      }
+
+      const playerAData = playerADoc.data();
+
+      if (!gameData || !playerAData || !botGame) {
+        throw new Error('Game or player data is undefined');
+      }
+
+      transaction.update(playerAUsersRef, {
+        currentBotGameId: admin.firestore.FieldValue.delete(),
+      });
+
+      transaction.update(gameRef, { status: 'completed', winner: botGame.winner });
     });
   } catch (error) {
     throw new Error('Failed to update game result');
