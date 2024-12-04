@@ -67,5 +67,5 @@ export function getModelSession(difficulty: "novice" | "intermediate" | "advance
   if (difficulty === "novice") return modelSessions["less_1000"]
   if (difficulty === "intermediate") return modelSessions["1000_1500"];
   if (difficulty === "advanced") return modelSessions["1500_2000"];
-  return modelSessions["master"];
+  return modelSessions["greater_2000"];
 }
