@@ -13,7 +13,6 @@ const modelPaths: Record<string, string> = {
   "1000_1500": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_1000_1500_optimized_quantized.onnx"),
   "1500_2000": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_1500_2000_optimized_quantized.onnx"),
   "greater_2000": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_elo_2000_plus_optimized_quantized.onnx"),
-  "base": path.resolve(process.cwd(), "src/chessBot/onnx_models/model_optimized_quantized.onnx"),
 };
 
 const modelSessions: Record<string, ort.InferenceSession> = {};
@@ -60,14 +59,13 @@ export async function preloadModels(): Promise<void> {
  * Retrieves the preloaded ONNX inference session based on the bot's difficulty level.
  *
  * @function getModelSession
- * @param {"novice" | "intermediate" | "advanced" | "master" | "base"} difficulty - The difficulty level of the bot.
+ * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level of the bot.
  * @returns {ort.InferenceSession} The preloaded ONNX inference session corresponding to the given difficulty.
  * @throws {Error} Throws an error if the model for the requested difficulty has not been preloaded.
  */
-export function getModelSession(difficulty: "novice" | "intermediate" | "advanced" | "master" | "base"): ort.InferenceSession {
+export function getModelSession(difficulty: "novice" | "intermediate" | "advanced" | "master"): ort.InferenceSession {
   if (difficulty === "novice") return modelSessions["less_1000"]
   if (difficulty === "intermediate") return modelSessions["1000_1500"];
   if (difficulty === "advanced") return modelSessions["1500_2000"];
-  if (difficulty === "master") return modelSessions["greater_2000"];
-  return modelSessions["base"];
+  return modelSessions["master"];
 }

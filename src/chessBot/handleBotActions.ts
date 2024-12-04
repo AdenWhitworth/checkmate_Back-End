@@ -6,17 +6,28 @@ import fs from "fs/promises";
 
 type MoveHistory = string[];
 
+type PredictRequest = {
+  history: Move[];
+  difficulty: "novice" | "intermediate" | "advanced" | "master";
+  resolve: (value: Move) => void;
+  reject: (reason?: any) => void;
+};
+
 const maxLength = 485;
 let moveToId: { [key: string]: number } | null = null;
 let idToMove: { [key: number]: string } | null = null;
+const requestQueue: PredictRequest[] = [];
+const MAX_CONCURRENT_REQUESTS = 2;
+let activeRequests = 0;
 
 /**
  * Loads the move-to-ID and ID-to-move mappings from JSON files.
  * Ensures the mappings are loaded only once and stored globally.
- *
+ * 
  * @throws {Error} If the mapping files cannot be read or parsed.
+ * @returns {Promise<void>} Resolves when the mappings are loaded.
  */
-async function loadMappings() {
+async function loadMappings(): Promise<void> {
   if (moveToId && idToMove) return;
 
   const moveToIdPath = path.resolve(process.cwd(), "src/chessBot/onnx_models/move_to_id.json");
@@ -27,7 +38,7 @@ async function loadMappings() {
     idToMove = JSON.parse(await fs.readFile(idToMovePath, "utf-8"));
     console.log("Mappings loaded successfully.");
   } catch (error) {
-    console.error("Error loading mapping files. Check if the files exist and are accessible.", error);
+    console.error("Error loading mapping files:", error);
     throw new Error("Mapping files could not be loaded.");
   }
 }
@@ -42,10 +53,8 @@ async function loadMappings() {
  * @returns {Float32Array} A padded tensor representing the move history in numeric ID format.
  */
 function prepareInput(moveHistory: MoveHistory, moveToId: { [key: string]: number }, maxLength: number): Float32Array {
-  // Convert move history to IDs using moveToId mapping
   const tokenizedHistory = moveHistory.map((move) => moveToId[move] || 0);
 
-  // Pad the history to match the model's expected input length
   const paddedHistory = new Array(maxLength).fill(0);
   for (let i = 0; i < tokenizedHistory.length; i++) {
     paddedHistory[i] = tokenizedHistory[i];
@@ -55,29 +64,63 @@ function prepareInput(moveHistory: MoveHistory, moveToId: { [key: string]: numbe
 }
 
 /**
- * Converts a FEN string to a move history array.
- *
- * @param fen - The FEN string representing the current board state.
- * @returns An array of moves in SAN format representing the game history.
+ * Converts a verbose move history to a simple SAN format.
+ * 
+ * @param {Move[]} verboseHistory - An array of moves in verbose format.
+ * @returns {MoveHistory} The move history in SAN format.
  */
 function verboseToMoveHistory(verboseHistory: Move[]): MoveHistory {
   return verboseHistory.map((move) => move.san);
 }
 
 /**
- * Predicts the next chess move based on the provided game history and difficulty level.
+ * Processes requests in the queue with concurrency control.
  *
- * @param {Move[]} history - An array of moves representing the game history in verbose format.
- * Each move contains properties like `from`, `to`, `color`, `piece`, `san`, etc.
- * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level for the prediction.
- * Determines which model to use for the prediction.
- * @returns {Promise<Move>} A Promise that resolves to a `Move` object representing the predicted move.
- * The `Move` object includes details like `from`, `to`, `san`, and other metadata about the move.
- *
- * @throws {Error} If there is an issue with loading mappings, ONNX session initialization,
- * model inference, or if no valid move can be determined.
+ * @function processQueue
+ * @returns {Promise<void>} Resolves when the queue has been processed.
  */
-export async function predictNextMove(history: Move[], difficulty: "novice" | "intermediate" | "advanced" | "master",): Promise<Move> {
+async function processQueue(): Promise<void> {
+  if (requestQueue.length === 0 || activeRequests >= MAX_CONCURRENT_REQUESTS) return;
+
+  activeRequests++;
+
+  const { history, difficulty, resolve, reject } = requestQueue.shift()!;
+
+  try {
+    const result = await predictNextMoveInternal(history, difficulty);
+    resolve(result);
+  } catch (error) {
+    reject(error);
+  } finally {
+    activeRequests--;
+    processQueue();
+  }
+}
+
+/**
+ * Adds a prediction request to the queue and returns a Promise for the result.
+ * 
+ * @param {Move[]} history - An array of moves in verbose format representing the game history.
+ * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level for the prediction.
+ * @returns {Promise<Move>} A Promise that resolves to the predicted move.
+ */
+export function predictNextMove(history: Move[], difficulty: "novice" | "intermediate" | "advanced" | "master"): Promise<Move> {
+  return new Promise((resolve, reject) => {
+    requestQueue.push({ history, difficulty, resolve, reject });
+    processQueue();
+  });
+}
+
+/**
+ * Predicts the next chess move based on the provided game history and difficulty level.
+ * This function performs the actual inference without concurrency management.
+ * 
+ * @param {Move[]} history - An array of moves in verbose format representing the game history.
+ * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level for the prediction.
+ * @returns {Promise<Move>} A Promise that resolves to the predicted move.
+ * @throws {Error} If there is an issue with loading mappings, ONNX session initialization, or inference.
+ */
+export async function predictNextMoveInternal(history: Move[], difficulty: "novice" | "intermediate" | "advanced" | "master",): Promise<Move> {
   try {
     const moveHistory: MoveHistory = verboseToMoveHistory(history);
 
