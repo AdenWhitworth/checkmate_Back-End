@@ -11,6 +11,7 @@ type PredictRequest = {
   difficulty: "novice" | "intermediate" | "advanced" | "master";
   resolve: (value: Move) => void;
   reject: (reason?: any) => void;
+  depth: number;
 };
 
 const maxLength = 485;
@@ -54,41 +55,139 @@ async function loadMappings(): Promise<void> {
  */
 function prepareInput(moveHistory: MoveHistory, moveToId: { [key: string]: number }, maxLength: number): Float32Array {
   const tokenizedHistory = moveHistory.map((move) => moveToId[move] || 0);
-
   const paddedHistory = new Array(maxLength).fill(0);
   for (let i = 0; i < tokenizedHistory.length; i++) {
     paddedHistory[i] = tokenizedHistory[i];
   }
-
   return Float32Array.from(paddedHistory);
 }
 
 /**
- * Converts a verbose move history to a simple SAN format.
+ * Implements the Alpha-Beta pruning algorithm for searching the best move in a chess game.
  * 
- * @param {Move[]} verboseHistory - An array of moves in verbose format.
- * @returns {MoveHistory} The move history in SAN format.
+ * @param {Chess} chess - The Chess.js instance representing the current game state.
+ * @param {number} depth - The maximum depth of the search tree.
+ * @param {number} alpha - The alpha value for pruning.
+ * @param {number} beta - The beta value for pruning.
+ * @param {boolean} maximizingPlayer - Indicates whether the current player is maximizing or minimizing the evaluation score.
+ * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level of the bot.
+ * @returns {Promise<{ score: number; bestMove: Move | null }>} A promise that resolves to an object containing the best score and the best move.
  */
-function verboseToMoveHistory(verboseHistory: Move[]): MoveHistory {
-  return verboseHistory.map((move) => move.san);
+async function alphaBeta(
+  chess: Chess,
+  depth: number,
+  alpha: number,
+  beta: number,
+  maximizingPlayer: boolean,
+  difficulty: "novice" | "intermediate" | "advanced" | "master"
+): Promise<{ score: number; bestMove: Move | null }> {
+  if (depth === 0 || chess.isGameOver()) {
+    const evaluation = await evaluateBoard(chess.history({ verbose: true }), difficulty);
+    return { score: evaluation, bestMove: null };
+  }
+
+  const legalMoves = chess.moves({ verbose: true });
+
+  if (maximizingPlayer) {
+    let maxEval = -Infinity;
+    let bestMove: Move | null = null;
+
+    for (const move of legalMoves) {
+      chess.move(move);
+      const { score } = await alphaBeta(chess, depth - 1, alpha, beta, false, difficulty);
+      chess.undo();
+
+      if (score > maxEval) {
+        maxEval = score;
+        bestMove = move;
+      }
+      alpha = Math.max(alpha, score);
+      if (beta <= alpha) break;
+    }
+
+    return { score: maxEval, bestMove };
+  } else {
+    let minEval = Infinity;
+    let bestMove: Move | null = null;
+
+    for (const move of legalMoves) {
+      chess.move(move);
+      const { score } = await alphaBeta(chess, depth - 1, alpha, beta, true, difficulty);
+      chess.undo();
+
+      if (score < minEval) {
+        minEval = score;
+        bestMove = move;
+      }
+      beta = Math.min(beta, score);
+      if (beta <= alpha) break;
+    }
+
+    return { score: minEval, bestMove };
+  }
 }
 
 /**
- * Processes requests in the queue with concurrency control.
- *
- * @function processQueue
- * @returns {Promise<void>} Resolves when the queue has been processed.
+ * Evaluates the board state using the ONNX model to return a score.
+ * 
+ * @param {Move[]} history - The game history represented as an array of verbose moves.
+ * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level of the bot.
+ * @returns {Promise<number>} A promise that resolves to the evaluation score of the board.
+ * @throws {Error} If the ONNX session fails to load or the mappings are not available.
+ */
+async function evaluateBoard(history: Move[], difficulty: "novice" | "intermediate" | "advanced" | "master"): Promise<number> {
+  await loadMappings();
+
+  if (!moveToId || !idToMove) {
+    throw new Error("Mappings not loaded properly.");
+  }
+
+  const session = getModelSession(difficulty);
+  if (!session) {
+    throw new Error("Failed to load ONNX session.");
+  }
+
+  const moveHistory = history.map((move) => move.san);
+  const inputTensor = prepareInput(moveHistory, moveToId, maxLength);
+
+  const feeds: Record<string, ort.Tensor> = {
+    args_0: new ort.Tensor("float32", inputTensor, [1, maxLength]),
+  };
+
+  const results = await session.run(feeds);
+  const outputName = session.outputNames[0];
+
+  if (!results[outputName]) {
+    throw new Error(`Output ${outputName} not found in model results.`);
+  }
+
+  const output = results[outputName].data as Float32Array;
+  return output[0];
+}
+
+/**
+ * Processes prediction requests in the queue with a limit on concurrent requests.
+ * 
+ * @returns {Promise<void>} Resolves when the request queue is processed.
  */
 async function processQueue(): Promise<void> {
   if (requestQueue.length === 0 || activeRequests >= MAX_CONCURRENT_REQUESTS) return;
 
   activeRequests++;
 
-  const { history, difficulty, resolve, reject } = requestQueue.shift()!;
+  const { history, difficulty, resolve, reject, depth } = requestQueue.shift()!;
 
   try {
-    const result = await predictNextMoveInternal(history, difficulty);
-    resolve(result);
+    const chess = new Chess();
+    history.forEach((move) => chess.move(move));
+
+    const { bestMove } = await alphaBeta(chess, depth, -Infinity, Infinity, true, difficulty);
+
+    if (!bestMove) {
+      throw new Error("Failed to determine a valid move.");
+    }
+
+    resolve(bestMove);
   } catch (error) {
     reject(error);
   } finally {
@@ -98,106 +197,27 @@ async function processQueue(): Promise<void> {
 }
 
 /**
- * Adds a prediction request to the queue and returns a Promise for the result.
+ * Adds a prediction request to the queue and returns a promise for the predicted move.
  * 
  * @param {Move[]} history - An array of moves in verbose format representing the game history.
- * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level for the prediction.
- * @returns {Promise<Move>} A Promise that resolves to the predicted move.
+ * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level of the bot.
+ * @returns {Promise<Move>} A promise that resolves to the predicted move.
  */
-export function predictNextMove(history: Move[], difficulty: "novice" | "intermediate" | "advanced" | "master"): Promise<Move> {
+export function predictNextMove(
+  history: Move[],
+  difficulty: "novice" | "intermediate" | "advanced" | "master"
+): Promise<Move> {
+  const depthMapping: Record<"novice" | "intermediate" | "advanced" | "master", 0 | 1 | 2 | 2> = {
+    novice: 0,
+    intermediate: 1,
+    advanced: 2,
+    master: 2,
+  };
+
+  const depth = depthMapping[difficulty];
+
   return new Promise((resolve, reject) => {
-    requestQueue.push({ history, difficulty, resolve, reject });
+    requestQueue.push({ history, difficulty, resolve, reject, depth });
     processQueue();
   });
-}
-
-/**
- * Predicts the next chess move based on the provided game history and difficulty level.
- * This function performs the actual inference without concurrency management.
- * 
- * @param {Move[]} history - An array of moves in verbose format representing the game history.
- * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level for the prediction.
- * @returns {Promise<Move>} A Promise that resolves to the predicted move.
- * @throws {Error} If there is an issue with loading mappings, ONNX session initialization, or inference.
- */
-export async function predictNextMoveInternal(history: Move[], difficulty: "novice" | "intermediate" | "advanced" | "master",): Promise<Move> {
-  try {
-    const moveHistory: MoveHistory = verboseToMoveHistory(history);
-
-    await loadMappings();
-    if (!moveToId || !idToMove) {
-      throw new Error("Mappings not loaded properly.");
-    }
-
-    const session = getModelSession(difficulty);
-    if (!session) {
-      throw new Error("Failed to load ONNX session.");
-    }
-
-    const board = new Chess();
-    for (const move of moveHistory) {
-      board.move(move);
-    }
-
-    const inputTensor = prepareInput(moveHistory, moveToId, maxLength);
-
-    const feeds: Record<string, ort.Tensor> = {
-      args_0: new ort.Tensor("float32", inputTensor, [1, maxLength]),
-    };
-
-    const results = await session.run(feeds);
-
-    const outputName = session.outputNames[0];
-    if (!results[outputName]) {
-      throw new Error(`Output ${outputName} not found in model results.`);
-    }
-
-    const output = results[outputName].data as Float32Array;
-
-    const moveProbabilities = Array.from(output);
-    const sortedIndices = moveProbabilities
-      .map((prob, idx) => ({ idx, prob }))
-      .sort((a, b) => b.prob - a.prob)
-      .map((entry) => entry.idx);
-
-    const legalMoves = board.moves({ verbose: true });
-
-    for (const predictedMoveId of sortedIndices) {
-      const predictedMoveSAN = idToMove[predictedMoveId];
-      const matchedMove = legalMoves.find((move) => move.san === predictedMoveSAN);
-      if (matchedMove) {
-        return {
-          from: matchedMove.from,
-          to: matchedMove.to,
-          color: matchedMove.color,
-          piece: matchedMove.piece,
-          promotion: matchedMove.promotion || undefined,
-          flags: matchedMove.flags || "",
-          san: matchedMove.san,
-          lan: matchedMove.lan || "",
-          before: matchedMove.before || "",
-          after: matchedMove.after || "",
-        };
-      }
-    }
-
-    console.warn("No valid predicted moves found. Selecting a random legal move.");
-    const randomMove = legalMoves[Math.floor(Math.random() * legalMoves.length)];
-
-    return {
-      from: randomMove.from,
-      to: randomMove.to,
-      color: randomMove.color,
-      piece: randomMove.piece,
-      promotion: randomMove.promotion || undefined,
-      flags: randomMove.flags || "",
-      san: randomMove.san,
-      lan: randomMove.lan || "",
-      before: randomMove.before || "",
-      after: randomMove.after || "",
-    };
-  } catch (error) {
-    console.error("Error during ONNX model inference:", error);
-    throw error;
-  }
 }
