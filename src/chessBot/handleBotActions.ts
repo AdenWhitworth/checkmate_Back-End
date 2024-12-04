@@ -62,39 +62,39 @@ function prepareInput(moveHistory: MoveHistory, moveToId: { [key: string]: numbe
   return Float32Array.from(paddedHistory);
 }
 
-/**
- * Implements the Alpha-Beta pruning algorithm for searching the best move in a chess game.
- * 
- * @param {Chess} chess - The Chess.js instance representing the current game state.
- * @param {number} depth - The maximum depth of the search tree.
- * @param {number} alpha - The alpha value for pruning.
- * @param {number} beta - The beta value for pruning.
- * @param {boolean} maximizingPlayer - Indicates whether the current player is maximizing or minimizing the evaluation score.
- * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level of the bot.
- * @returns {Promise<{ score: number; bestMove: Move | null }>} A promise that resolves to an object containing the best score and the best move.
- */
 async function alphaBeta(
   chess: Chess,
   depth: number,
   alpha: number,
   beta: number,
   maximizingPlayer: boolean,
-  difficulty: "novice" | "intermediate" | "advanced" | "master"
+  difficulty: "novice" | "intermediate" | "advanced" | "master",
+  transpositionTable: Map<string, { score: number; depth: number }>
 ): Promise<{ score: number; bestMove: Move | null }> {
+  const fen = chess.fen();
+
+  if (transpositionTable.has(fen)) {
+    const cachedEntry = transpositionTable.get(fen)!;
+    if (cachedEntry.depth >= depth) {
+      return { score: cachedEntry.score, bestMove: null };
+    }
+  }
+
   if (depth === 0 || chess.isGameOver()) {
     const evaluation = await evaluateBoard(chess.history({ verbose: true }), difficulty);
+    transpositionTable.set(fen, { score: evaluation, depth });
     return { score: evaluation, bestMove: null };
   }
 
   const legalMoves = chess.moves({ verbose: true });
+  let bestMove: Move | null = null;
 
   if (maximizingPlayer) {
     let maxEval = -Infinity;
-    let bestMove: Move | null = null;
 
     for (const move of legalMoves) {
       chess.move(move);
-      const { score } = await alphaBeta(chess, depth - 1, alpha, beta, false, difficulty);
+      const { score } = await alphaBeta(chess, depth - 1, alpha, beta, false, difficulty, transpositionTable);
       chess.undo();
 
       if (score > maxEval) {
@@ -105,14 +105,14 @@ async function alphaBeta(
       if (beta <= alpha) break;
     }
 
+    transpositionTable.set(fen, { score: maxEval, depth });
     return { score: maxEval, bestMove };
   } else {
     let minEval = Infinity;
-    let bestMove: Move | null = null;
 
     for (const move of legalMoves) {
       chess.move(move);
-      const { score } = await alphaBeta(chess, depth - 1, alpha, beta, true, difficulty);
+      const { score } = await alphaBeta(chess, depth - 1, alpha, beta, true, difficulty, transpositionTable);
       chess.undo();
 
       if (score < minEval) {
@@ -123,6 +123,7 @@ async function alphaBeta(
       if (beta <= alpha) break;
     }
 
+    transpositionTable.set(fen, { score: minEval, depth });
     return { score: minEval, bestMove };
   }
 }
@@ -176,12 +177,13 @@ async function processQueue(): Promise<void> {
   activeRequests++;
 
   const { history, difficulty, resolve, reject, depth } = requestQueue.shift()!;
+  const transpositionTable = new Map<string, { score: number; depth: number }>(); // Initialize the transposition table
 
   try {
     const chess = new Chess();
     history.forEach((move) => chess.move(move));
 
-    const { bestMove } = await alphaBeta(chess, depth, -Infinity, Infinity, true, difficulty);
+    const { bestMove } = await alphaBeta(chess, depth, -Infinity, Infinity, true, difficulty, transpositionTable);
 
     if (!bestMove) {
       throw new Error("Failed to determine a valid move.");
