@@ -62,6 +62,19 @@ function prepareInput(moveHistory: MoveHistory, moveToId: { [key: string]: numbe
   return Float32Array.from(paddedHistory);
 }
 
+/**
+ * Performs alpha-beta pruning to find the best move.
+ *
+ * @param {Chess} chess - The current chess game state.
+ * @param {number} depth - The remaining depth to search.
+ * @param {number} alpha - The alpha value for pruning.
+ * @param {number} beta - The beta value for pruning.
+ * @param {boolean} maximizingPlayer - True if it's the maximizing player's turn.
+ * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level.
+ * @param {Map<string, { score: number; depth: number }>} transpositionTable - Cache for storing evaluated positions.
+ * @param {number} maxMoves - The maximum number of moves to evaluate at each depth.
+ * @returns {Promise<{ score: number; bestMove: Move | null }>} The best move and its evaluation score.
+ */
 async function alphaBeta(
   chess: Chess,
   depth: number,
@@ -69,7 +82,8 @@ async function alphaBeta(
   beta: number,
   maximizingPlayer: boolean,
   difficulty: "novice" | "intermediate" | "advanced" | "master",
-  transpositionTable: Map<string, { score: number; depth: number }>
+  transpositionTable: Map<string, { score: number; depth: number }>,
+  maxMoves: number = 5
 ): Promise<{ score: number; bestMove: Move | null }> {
   const fen = chess.fen();
 
@@ -81,20 +95,53 @@ async function alphaBeta(
   }
 
   if (depth === 0 || chess.isGameOver()) {
-    const evaluation = await evaluateBoard(chess.history({ verbose: true }), difficulty);
-    transpositionTable.set(fen, { score: evaluation, depth });
-    return { score: evaluation, bestMove: null };
+    const probabilities = await evaluateBoard(chess.history({ verbose: true }), difficulty);
+    const legalMoves = chess.moves({ verbose: true });
+
+    const legalMoveScores = legalMoves.map((move) => {
+      const moveId = moveToId![move.san];
+      return probabilities[moveId] || 0;
+    });
+
+    const sortedMoves = legalMoves
+      .map((move, index) => ({ move, score: legalMoveScores[index] }))
+      .sort((a, b) => b.score - a.score);
+
+    const bestMove = sortedMoves[0]?.move || null;
+    const maxScore = sortedMoves[0]?.score || 0;
+
+    return { score: maxScore, bestMove };
   }
 
   const legalMoves = chess.moves({ verbose: true });
+
+  const probabilities = await evaluateBoard(chess.history({ verbose: true }), difficulty);
+  const scoredMoves = legalMoves.map((move) => ({
+    move,
+    score: probabilities[moveToId![move.san]] || 0,
+  }));
+
+  scoredMoves.sort((a, b) => b.score - a.score);
+
+  const limitedMoves = scoredMoves.slice(0, maxMoves);
+
   let bestMove: Move | null = null;
 
   if (maximizingPlayer) {
     let maxEval = -Infinity;
 
-    for (const move of legalMoves) {
+    for (const { move } of limitedMoves) {
       chess.move(move);
-      const { score } = await alphaBeta(chess, depth - 1, alpha, beta, false, difficulty, transpositionTable);
+      const { score } = await alphaBeta(
+        chess,
+        depth - 1,
+        alpha,
+        beta,
+        false,
+        difficulty,
+        transpositionTable,
+        maxMoves
+      );
       chess.undo();
 
       if (score > maxEval) {
@@ -110,9 +157,18 @@ async function alphaBeta(
   } else {
     let minEval = Infinity;
 
-    for (const move of legalMoves) {
+    for (const { move } of limitedMoves) {
       chess.move(move);
-      const { score } = await alphaBeta(chess, depth - 1, alpha, beta, true, difficulty, transpositionTable);
+      const { score } = await alphaBeta(
+        chess,
+        depth - 1,
+        alpha,
+        beta,
+        true,
+        difficulty,
+        transpositionTable,
+        maxMoves
+      );
       chess.undo();
 
       if (score < minEval) {
@@ -129,14 +185,17 @@ async function alphaBeta(
 }
 
 /**
- * Evaluates the board state using the ONNX model to return a score.
- * 
- * @param {Move[]} history - The game history represented as an array of verbose moves.
+ * Evaluates the current board state using an ONNX model.
+ *
+ * @param {Move[]} history - An array of moves in verbose format representing the game history.
  * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level of the bot.
- * @returns {Promise<number>} A promise that resolves to the evaluation score of the board.
- * @throws {Error} If the ONNX session fails to load or the mappings are not available.
+ * @returns {Promise<Float32Array>} A Float32Array of probabilities for all possible moves.
+ * @throws {Error} If the ONNX model session cannot be loaded or mappings are missing.
  */
-async function evaluateBoard(history: Move[], difficulty: "novice" | "intermediate" | "advanced" | "master"): Promise<number> {
+async function evaluateBoard(
+  history: Move[],
+  difficulty: "novice" | "intermediate" | "advanced" | "master"
+): Promise<Float32Array> {
   await loadMappings();
 
   if (!moveToId || !idToMove) {
@@ -149,6 +208,7 @@ async function evaluateBoard(history: Move[], difficulty: "novice" | "intermedia
   }
 
   const moveHistory = history.map((move) => move.san);
+
   const inputTensor = prepareInput(moveHistory, moveToId, maxLength);
 
   const feeds: Record<string, ort.Tensor> = {
@@ -163,7 +223,7 @@ async function evaluateBoard(history: Move[], difficulty: "novice" | "intermedia
   }
 
   const output = results[outputName].data as Float32Array;
-  return output[0];
+  return output;
 }
 
 /**
@@ -177,7 +237,7 @@ async function processQueue(): Promise<void> {
   activeRequests++;
 
   const { history, difficulty, resolve, reject, depth } = requestQueue.shift()!;
-  const transpositionTable = new Map<string, { score: number; depth: number }>(); // Initialize the transposition table
+  const transpositionTable = new Map<string, { score: number; depth: number }>();
 
   try {
     const chess = new Chess();
@@ -191,6 +251,7 @@ async function processQueue(): Promise<void> {
 
     resolve(bestMove);
   } catch (error) {
+    console.error("Error during prediction:", error);
     reject(error);
   } finally {
     activeRequests--;
@@ -209,11 +270,11 @@ export function predictNextMove(
   history: Move[],
   difficulty: "novice" | "intermediate" | "advanced" | "master"
 ): Promise<Move> {
-  const depthMapping: Record<"novice" | "intermediate" | "advanced" | "master", 0 | 1 | 2 | 2> = {
+  const depthMapping: Record<"novice" | "intermediate" | "advanced" | "master", 0 | 1 | 2 | 3> = {
     novice: 0,
     intermediate: 1,
     advanced: 2,
-    master: 2,
+    master: 3,
   };
 
   const depth = depthMapping[difficulty];
@@ -222,4 +283,94 @@ export function predictNextMove(
     requestQueue.push({ history, difficulty, resolve, reject, depth });
     processQueue();
   });
+}
+
+/**
+ * Converts a verbose history of moves into a simplified SAN (Standard Algebraic Notation) move history.
+ *
+ * @param {Move[]} verboseHistory - An array of moves in verbose format.
+ * @returns {MoveHistory} An array of moves in SAN format.
+ */
+function verboseToMoveHistory(verboseHistory: Move[]): MoveHistory {
+  return verboseHistory.map((move) => move.san);
+}
+
+/**
+ * Predicts the next best move using an ONNX model, given the current game history and difficulty level.
+ * 
+ * @param {Move[]} history - The history of moves played in verbose format.
+ * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level for the prediction.
+ * @returns {Promise<Move>} A promise that resolves to the predicted best move.
+ * @throws {Error} If the ONNX model or mappings are not loaded properly.
+ */
+export async function predictNextMoveOriginal(
+  history: Move[],
+  difficulty: "novice" | "intermediate" | "advanced" | "master"
+): Promise<Move> {
+  try {
+    const moveHistory: MoveHistory = verboseToMoveHistory(history);
+
+    await loadMappings();
+    if (!moveToId || !idToMove) {
+      throw new Error("Mappings not loaded properly.");
+    }
+
+    const session = getModelSession(difficulty);
+    if (!session) {
+      throw new Error("Failed to load ONNX session.");
+    }
+
+    const board = new Chess();
+    for (const move of moveHistory) {
+      board.move(move);
+    }
+
+    const inputTensor = prepareInput(moveHistory, moveToId, maxLength);
+
+    const feeds: Record<string, ort.Tensor> = {
+      args_0: new ort.Tensor("float32", inputTensor, [1, maxLength]),
+    };
+
+    const results = await session.run(feeds);
+
+    const outputName = session.outputNames[0];
+    if (!results[outputName]) {
+      throw new Error(`Output ${outputName} not found in model results.`);
+    }
+
+    const output =
+      results[outputName].data instanceof BigInt64Array
+        ? Array.from(results[outputName].data, (bigInt) => Number(bigInt))
+        : Array.from(results[outputName].data);
+
+    const legalMoves = board.moves({ verbose: true });
+    const legalMovesSAN = legalMoves.map((move) => move.san);
+
+    const filteredProbabilities = output
+      .map((prob, idx) => ({
+        id: idx,
+        move: idToMove?.[idx] || "Unknown",
+        probability: prob,
+      }))
+      .filter((entry) => legalMovesSAN.includes(entry.move))
+      .sort((a, b) => b.probability - a.probability);
+
+    if (filteredProbabilities.length === 0) {
+      console.warn("No valid predicted moves. Falling back to random.");
+      return legalMoves[Math.floor(Math.random() * legalMoves.length)];
+    }
+
+    const bestMoveSAN = filteredProbabilities[0].move;
+    const bestMove = legalMoves.find((move) => move.san === bestMoveSAN);
+
+    if (bestMove) {
+      return bestMove;
+    } else {
+      console.warn("Best move not found. Falling back to random.");
+      return legalMoves[Math.floor(Math.random() * legalMoves.length)];
+    }
+  } catch (error) {
+    console.error("Error predicting move:", error);
+    throw error;
+  }
 }
