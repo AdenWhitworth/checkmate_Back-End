@@ -29,6 +29,8 @@ Welcome to the **Checkmate Back-End**, the API for the Checkmate game. This Node
 
 The Checkmate application is live and can be accessed here: [Checkmate Demo](https://checkmateplay.com). You can explore all features of the game, including real-time gameplay, chat, and rankings.
 
+<img width="600" src="https://github.com/AdenWhitworth/aden_whitworth_portfolio/raw/master/src/Images/chess_demo.png" alt="Checkmate Demo">
+
 ### Test User Credentials
 
 Try out the app using the following demo accounts:
