@@ -2,7 +2,7 @@
 
 # Checkmate Back-End
 
-Welcome to the **Checkmate Back-End**, the API for the Checkmate game. This backend controls all active chess games, user authentication, chat, and ranking systems.
+Welcome to the **Checkmate Back-End**, the API for the Checkmate game. This Node.js backend API manages active chess games (human and bot), user authentication, in-game chat, and ELO ranking systems. It ensures smooth, real-time gameplay and communication through WebSockets integration.
 
 ## Table of Contents
 - [Overview](#overview)
@@ -23,7 +23,7 @@ Welcome to the **Checkmate Back-End**, the API for the Checkmate game. This back
 
 ## Overview
 
-**Checkmate** is an application that enables players to compete in real-time chess matches, communicate with opponents, and track their rankings. The backend, built with Node.js and WebSocket, manages all server-side logic, ensuring a smooth, responsive gameplay experience.
+**Checkmate** is an application that enables players to challenge friends, hone their skills against AI-powered bots, and track their progress in real-time. The backend, built with Node.js and WebSocket, manages all server-side logic, ensuring a smooth, responsive gameplay experience.
 
 ## Checkmate Demo
 
@@ -45,7 +45,9 @@ Try out the app using the following demo accounts:
 - **Matchmaking & Game Room Management**: Create, join, and manage game rooms, making it easy to start games with friends.
 - **Player Stats & Ranking System**: Track player performance and compare ELO rankings with friends, updating results in real-time.
 - **In-Game Chat Support**: Use real-time chat to communicate with your opponent during matches.
-- **Game Persistence**: Stay in the game, even if you loose connection, with a reliable rejoin feature.
+- **Game Persistence**: Stay in the game, even if you lose connection, with a reliable rejoin feature.
+- **AI Bot Matchmaking**: Create and manage games against skill-based AI bot opponents, offering tailored practice to improve strategic skills.
+- **Best Move Hint**: Receive strategic guidance with best move hints powered by the master-level AI bot, helping you learn and improve during gameplay.
 
 ## Technologies Used
 
@@ -55,6 +57,7 @@ Try out the app using the following demo accounts:
 - **JWT (JSON Web Tokens)**: Used for secure authentication.
 - **Socket.IO**: A library that facilitates real-time, bidirectional communication between clients and servers, crucial for features like live updates and notifications.
 - **uuid.js**: A library used to generate unique identifiers (UUIDs), essential for creating distinct and secure references for users, games, and various entities in web applications.
+- **onnxruntime-node**:  A high-performance runtime for executing ONNX models in Node.js, enabling seamless integration of AI-powered features such as chess move predictions and strategic analysis into the backend.
 - **Firebase**:
   - **Authentication**: Provides secure sign-in via various methods, including email/password, Google, etc.
   - **Admin**: Firebase Admin SDK is used for server-side operations like managing users, securely accessing Firebase databases, and performing other privileged tasks such as setting up custom claims for user roles and managing user accounts programmatically.
@@ -139,7 +142,7 @@ npm run dev
 The backend provides a set of WebSocket endpoints to interact with the system in real-time:
 
 - Game Routes
-  - `/addUser`: Add a username to the socket connection.
+  - `/AddUser`: Add a username to the socket connection.
   - `/createRoom`: Create a new game room.
   - `/joinRoom`: Join a game room.
   - `/opponentJoined`: Notify the opponent that you’ve joined.
@@ -148,16 +151,21 @@ The backend provides a set of WebSocket endpoints to interact with the system in
   - `/playerForfeited`: Notify the other player of a forfeit.
   - `/closeRoom`: Close the room when the game is finished.
   - `/reconnectRoom`: Reconnect to an active game
+  - `/getBotMove`: Retrieve the next move from the AI bot based on the current game state.
+  - `/createBotGame`: Create a new game session against an AI bot.
+  - `/closeBotGame`: End an active game session against an AI bot.
+  - `/moveHint`: Request a move suggestion from the AI bot to assist in decision-making.
+  - `/reconnectBotGame`: Reconnect to an active game session against an AI bot.
 - Chat Routes
   - `/sendGameMessage`: Send a chat message to the opponent during a game.
-  - `/receiveGameMessage`: Recieve a chat message to the opponent during a game.
+  - `/recieveGameMessage`: Recieve a chat message to the opponent during a game.
 - Connection Routes
   - `/connect`: Establish a WebSocket connection for real-time game updates.
   - `/disconnect`: Disconnect from the WebSocket server.
 
 ## Database Structure
 
-The application uses Firebase Firestore to store user data and game information. Below is the structure of the **users**, **players**, and **games** collections:
+Below is the schema for the Firestore database used to manage user profiles, active games, and bot interactions. This structure ensures scalability and efficiency for real-time updates.
 
 ```json
 {
@@ -218,6 +226,38 @@ The application uses Firebase Firestore to store user data and game information.
       "status": "$status",                     // Current status of the game ("in-progress", "completed", or "waiting")
       "winner": "$winner"                      // Winner of the game ("playerA", "playerB", "draw", or null if ongoing)
     }
+  },
+  "botGames": {
+    "$gameId": {                               
+      "createdAt": "$createdAt",               // Timestamp of when the game was created
+      "currentTurn": "$currentTurn",           // Indicates whose turn it is ("w" for white, "b" for black)
+      "difficulty": "$difficulty",             // Indicates the bots level of difficulty ("novice", "intermediate", "advanced", or "master")
+      "fen": "$fen",                           // FEN (Forsyth-Edwards Notation) string representing the board state
+      "gameId": "$gameId",                     // Unique identifier for the game
+      "help": "$help",                         // Indicates the level of assistance ("assisted", "friendly", or "challenge")
+      "history": ["$move1", "$move2", "..."],  // Array of moves made during the game
+      "lastMoveTime": "$lastMoveTime",         // Timestamp of when the last move was made
+      "playerA": {                             
+        "userId": "$userId",                   // User ID of player A
+        "playerId": "$playerId",               // Player ID of player A
+        "username": "$username",               // Username of player A
+        "elo": "$elo",                         // Elo rank of player A
+        "connected": "$connected",             // Connection status of player A (true, false, or "pending")
+        "orientation": "$orientation"          // Board orientation of player A ("w" or "b")
+      },
+      "playerB": {                             
+        "userId": "$userId",                   // User ID of player B which is always the bot
+        "playerId": "$playerId",               // Player ID of player B which is always the bot
+        "username": "$username",               // Username of player B which is always the bot
+        "elo": "$elo",                         // Elo rank of player B which is always the bot
+        "connected": "$connected",             // Connection status of player B which is always true for the bot
+        "orientation": "$orientation",         // Board orientation of player B ("w" or "b")
+      },
+      "remainingHints": "$remainingHints",     // The amount of hints left (Infinite as -1 or 0 to 3)
+      "remainingUndos": "$remainingUndos",     // The amount of undos left (Infinite as -1 or 0 to 3)
+      "status": "$status",                     // Current status of the game ("in-progress", "completed", or "waiting")
+      "winner": "$winner"                      // Winner of the game ("playerA", "playerB", "draw", or null if ongoing)
+    }
   }
 }
 ```
@@ -226,7 +266,7 @@ The application uses Firebase Firestore to store user data and game information.
 
 Here are a few exciting features that we are planning to add:
 
-1. **Solo Practice**: Implement AI opponents for solo play.
+1. **Practice Puzzles**: Integrate Lichess puzzles to help players improve their timing and accuracy in critical chess positions, enhancing decision-making skills under pressure.
 2. **Competition Timing**: Add a timer feature for each game to enhance competitive gameplay.
 3. **Live Stream**: Enable real-time streaming of friends' games so you can watch matches live.
 
