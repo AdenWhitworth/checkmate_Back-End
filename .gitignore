@@ -1,3 +1,4 @@
 # firebase api
 .firebase
 .env
+lichess_db_puzzle.csv

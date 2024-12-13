@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import { setupSocket } from "./controllers/socketController/socketController";
 import { errorHandler } from "./utility/errorhandler";
 import { preloadModels } from "./chessBot/handleModels";
+import { processAndUploadPuzzles } from "./puzzles/handleProcessPuzzles";
 
 /**
  * Initializes and configures an Express application with Socket.IO, CORS, rate limiting, and error handling.
@@ -69,9 +70,20 @@ setupSocket(io);
 
 app.use(errorHandler);
 
+const SHOULD_UPLOAD_PUZZLES = process.env.SHOULD_UPLOAD_PUZZLES === "true";
+
 (async () => {
   try {
     await preloadModels();
+
+    if (SHOULD_UPLOAD_PUZZLES) {
+      console.log("Uploading a new set of puzzles...");
+      await processAndUploadPuzzles();
+      console.log("Puzzles uploaded successfully!");
+    } else {
+      console.log("Skipping puzzle upload as SHOULD_UPLOAD_PUZZLES is false.");
+    }
+
     const port = process.env.PORT || 8080;
     server.listen(port, () => {
       console.log(`Server is running on port ${port}`);
