@@ -28,8 +28,8 @@ const processBatch = async (batchRows: Puzzle[]): Promise<void> => {
   const batch = firestore.batch();
 
   for (const puzzle of batchRows) {
-    const docRef = firestore.collection('puzzles').doc(puzzle.PuzzleId);
-    batch.set(docRef, puzzle);
+    const docRef = firestore.collection('puzzles').doc();
+    batch.set(docRef, { ...puzzle, puzzleId: docRef.id });
   }
 
   await batch.commit();
@@ -74,17 +74,17 @@ export const processAndUploadPuzzles = async (): Promise<void> => {
           }
 
           const puzzle: Puzzle = {
-            PuzzleId: row.PuzzleId,
-            FEN: row.FEN,
-            Moves: row.Moves.split(' '),
-            Rating: rating,
-            RatingDeviation: parseInt(row.RatingDeviation, 10),
-            Popularity: parseInt(row.Popularity, 10),
-            NbPlays: parseInt(row.NbPlays, 10),
-            Themes: row.Themes.split(' '),
-            GameUrl: row.GameUrl,
-            OpeningTags: row.OpeningTags || null,
-            Difficulty: difficulty,
+            puzzleTag: row.PuzzleId,
+            puzzleNumber: difficultyCounts[difficulty],
+            fen: row.FEN,
+            moves: row.Moves.split(' '),
+            rating: rating,
+            ratingDeviation: parseInt(row.RatingDeviation, 10),
+            popularity: parseInt(row.Popularity, 10),
+            numberPlays: parseInt(row.NbPlays, 10),
+            themes: row.Themes.split(' '),
+            openingTags: row.OpeningTags || null,
+            difficulty: difficulty,
           };
 
           rows.push(puzzle);

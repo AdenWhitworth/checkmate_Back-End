@@ -1,31 +1,33 @@
 /**
- * Represents the structure of a chess puzzle with metadata and solution details.
+ * Represents a chess puzzle stored in Firestore.
  *
  * @interface Puzzle
- * @property {string} PuzzleId - Unique identifier for the puzzle.
- * @property {string} FEN - Forsyth-Edwards Notation (FEN) for the chessboard state.
- * @property {string[]} Moves - Array of moves in the solution, represented as strings.
- * @property {number} Rating - Rating of the puzzle indicating its difficulty level.
- * @property {number} RatingDeviation - Deviation in the rating, providing a measure of uncertainty.
- * @property {number} Popularity - Popularity score of the puzzle, based on user engagement.
- * @property {number} NbPlays - Number of times the puzzle has been played.
- * @property {string[]} Themes - Array of themes associated with the puzzle (e.g., 'mate', 'endgame').
- * @property {string} GameUrl - URL pointing to the game from which the puzzle was derived.
- * @property {string | null} OpeningTags - Tags for the opening associated with the puzzle, if available.
- * @property {"easy" | "medium" | "hard"} Difficulty - Calculated difficulty level of the puzzle, based on its rating.
+ * @property {string} puzzleTag - A unique identifier for the puzzle (e.g., "easy-001").
+ * @property {string} fen - The Forsyth-Edwards Notation (FEN) string representing the initial chessboard state of the puzzle.
+ * @property {string[]} moves - An array of moves in UCI format that represent the solution to the puzzle.
+ * @property {number} rating - The difficulty rating of the puzzle, typically based on Elo.
+ * @property {number} ratingDeviation - The deviation in the puzzle's rating, indicating its reliability.
+ * @property {number} popularity - A score representing how popular the puzzle is among players.
+ * @property {number} numberPlays - The number of times the puzzle has been attempted.
+ * @property {string[]} themes - An array of themes or tags associated with the puzzle (e.g., "mateIn2", "endgame").
+ * @property {string | null} openingTags - Tags describing the opening associated with the puzzle, or `null` if not applicable.
+ * @property {"easy" | "medium" | "hard"} difficulty - The difficulty level of the puzzle.
+ * @property {string} [puzzleId] - An optional unique identifier for the puzzle in Firestore.
+ * @property {number} puzzleNumber - The sequential number of the puzzle within its difficulty level.
  */
 export interface Puzzle {
-    PuzzleId: string;
-    FEN: string;
-    Moves: string[];
-    Rating: number;
-    RatingDeviation: number;
-    Popularity: number;
-    NbPlays: number;
-    Themes: string[];
-    GameUrl: string;
-    OpeningTags: string | null;
-    Difficulty: "easy" | "medium" | "hard";
+    puzzleTag: string;
+    fen: string;
+    moves: string[];
+    rating: number;
+    ratingDeviation: number;
+    popularity: number;
+    numberPlays: number;
+    themes: string[];
+    openingTags: string | null;
+    difficulty: "easy" | "medium" | "hard";
+    puzzleId?: string;
+    puzzleNumber: number;
 }
 
   
