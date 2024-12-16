@@ -49,7 +49,6 @@ const processBatch = async (batchRows: Puzzle[]): Promise<void> => {
 export const processAndUploadPuzzles = async (): Promise<void> => {
   console.log('Processing CSV and uploading to Firebase...');
 
-  const puzzlesRef = firestore.collection('puzzles');
   const difficultyCounts: Record<'easy' | 'medium' | 'hard', number> = {
     easy: 0,
     medium: 0,
@@ -115,4 +114,51 @@ export const processAndUploadPuzzles = async (): Promise<void> => {
         reject(error);
       });
   });
+};
+
+export const addPuzzlesToExistingUsers = async (): Promise<void> => {
+  try {
+    console.log("Updating existing user documents...");
+
+    const usersRef = firestore.collection("users");
+    const usersSnapshot = await usersRef.get();
+
+    const batch = firestore.batch();
+    let batchSize = 0;
+    const MAX_BATCH_SIZE = 500;
+
+    usersSnapshot.forEach((userDoc) => {
+      const userData = userDoc.data();
+
+      const updatedFields: Record<string, any> = {};
+
+      if (!userData.lastPuzzle) {
+        updatedFields.lastPuzzle = {
+          easy: 0,
+          medium: 0,
+          hard: 0,
+        };
+      }
+
+      if (Object.keys(updatedFields).length > 0) {
+        batch.update(userDoc.ref, updatedFields);
+        batchSize++;
+
+        if (batchSize >= MAX_BATCH_SIZE) {
+          batch.commit();
+          console.log("Committed a batch of user updates.");
+          batchSize = 0;
+        }
+      }
+    });
+
+    if (batchSize > 0) {
+      await batch.commit();
+      console.log("Committed the final batch of user updates.");
+    }
+
+    console.log("User updates completed successfully!");
+  } catch (error) {
+    console.error("Error updating user documents:", error);
+  }
 };
