@@ -55,8 +55,8 @@ export const processAndUploadPuzzles = async (): Promise<void> => {
     hard: 0,
   };
 
-  const MAX_PUZZLES_PER_DIFFICULTY = 4;
-  const MAX_BATCH_SIZE = 2; //Firestore max batch size is 500
+  const MAX_PUZZLES_PER_DIFFICULTY = 1000;
+  const MAX_BATCH_SIZE = 500; //Firestore max batch size is 500
 
   const rows: Puzzle[] = [];
 
