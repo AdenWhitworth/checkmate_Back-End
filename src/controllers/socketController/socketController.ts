@@ -27,6 +27,12 @@ import { CloseBotGameArgs } from "./CloseBotGame/CloseBotGameTypes";
 import { handleCloseBotGame } from "./CloseBotGame/handleCloseBotGames";
 import { ReconnectBotGameArgs } from "./ReconnectBotGame/ReconnectBotGameTypes";
 import { handleReconnectBotGame } from "./ReconnectBotGame/handleReconnectBotGame";
+import { StartPuzzleArgs } from "./StartPuzzle/StartPuzzleTypes";
+import { handleStartPuzzle } from "./StartPuzzle/handleStartPuzzle";
+import { ClosePuzzleArgs } from "./ClosePuzzle/ClosePuzzleTypes";
+import { handleClosePuzzle } from "./ClosePuzzle/handleClosePuzzle";
+import { ReconnectPuzzleArgs } from "./ReconnectPuzzle/ReconnectPuzzleTypes";
+import { handleReconnectPuzzle } from "./ReconnectPuzzle/handleReconnectPuzzle";
 
 /**
  * Sets up the Socket.IO server with authentication middleware and event handlers.
@@ -51,6 +57,9 @@ import { handleReconnectBotGame } from "./ReconnectBotGame/handleReconnectBotGam
  * - `closeBotGame`: Closes an existing bot game.
  * - `moveHint`: Provides a hint for the next best move.
  * - `reconnectBotGame`: Reconnects a player to a bot game.
+ * - `startPuzzle`: Starts a puzzle for the player.
+ * - `closePuzzle`: Ends a puzzle for the player.
+ * - `reconnectPuzzle`: Reconnects the player to the active puzzle.
  *
  * Middleware:
  * - `authMiddleware`: Ensures authorization for socket connections.
@@ -69,6 +78,9 @@ import { handleReconnectBotGame } from "./ReconnectBotGame/handleReconnectBotGam
  * @fires socket#closeBotGame
  * @fires socket#moveHint
  * @fires socket#reconnectBotGame
+ * @fires socket#startPuzzle
+ * @fires socket#closePuzzle
+ * @fires socket#reconnectPuzzle
  *
  * @returns {void} This function does not return any value.
  */
@@ -98,6 +110,9 @@ export const setupSocket = (io: Server): void => {
     socket.on('closeBotGame', (closeBotGameArgs: CloseBotGameArgs, callback: Function) => handleCloseBotGame(closeBotGameArgs, callback));
     socket.on('moveHint', (moveHintArgs: MoveHintArgs, callback: Function) => handleMoveHint(moveHintArgs, callback));
     socket.on('reconnectBotGame', (reconnectBotGameArgs: ReconnectBotGameArgs, callback: Function) => handleReconnectBotGame(reconnectBotGameArgs, callback));
+    socket.on('startPuzzle', (startPuzzleArgs: StartPuzzleArgs, callback: Function) => handleStartPuzzle(socket, startPuzzleArgs, callback));
+    socket.on('closePuzzle', (closePuzzleArgs: ClosePuzzleArgs, callback: Function) => handleClosePuzzle(socket, closePuzzleArgs, callback));
+    socket.on('reconnectPuzzle', (reconnectPuzzleArgs: ReconnectPuzzleArgs, callback: Function) => handleReconnectPuzzle(reconnectPuzzleArgs, callback));
   });
 };
 
