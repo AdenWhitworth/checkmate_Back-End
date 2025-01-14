@@ -65,6 +65,7 @@ Try out the app using the following demo accounts:
   - **Authentication**: Provides secure sign-in via various methods, including email/password, Google, etc.
   - **Admin**: Firebase Admin SDK is used for server-side operations like managing users, securely accessing Firebase databases, and performing other privileged tasks such as setting up custom claims for user roles and managing user accounts programmatically.
 - **Linchess Database**: Open-source database containing over 5 million chess puzzles with solutions, used to power interactive puzzle features at varying skill levels.
+- **Stockfish**: A powerful, open-source chess engine used for move prediction and analysis, leveraging advanced algorithms to evaluate positions and generate optimal moves based on various skill levels.
 
 ## Getting Started
 
