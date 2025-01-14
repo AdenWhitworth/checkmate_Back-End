@@ -441,7 +441,8 @@ function processStockfishQueue(): void {
   activeStockfishRequests++;
   const { history, difficulty, resolve, reject } = stockfishRequestQueue.shift()!;
   const { stockfish_elo, depth } =  difficultyToStockfishElo(difficulty);
-  const stockfishPath = path.resolve(__dirname, "./stockfish/stockfish.exe");
+  const stockfishPath = path.resolve(process.cwd(), "src/chessBot/stockfish/stockfish.exe");
+  const syzygyPath = path.resolve(process.cwd(), "src/chessBot/stockfish/src/syzygy");
   const stockfish = spawn(stockfishPath);
 
   let bestMove: Move | null = null;
@@ -478,9 +479,9 @@ function processStockfishQueue(): void {
   
       if (!move) {
         console.error(`Invalid move for ${currentTurn === 'b' ? 'Black' : 'White'}'s turn: ${bestMoveLAN}`);
-        bestMove = null; // Invalid move
+        bestMove = null;
       } else {
-        bestMove = move; // Valid move
+        bestMove = move;
       }
   
       if (bestMove === null) {
@@ -525,7 +526,6 @@ function processStockfishQueue(): void {
   stockfish.stdin.write("setoption name Threads value 8\n");
   stockfish.stdin.write("setoption name Hash value 4096\n");
   stockfish.stdin.write(`position fen ${fen}\n`);
-  const syzygyPath = path.resolve(__dirname, "./stockfish/src/syzygy");
   stockfish.stdin.write(`setoption name SyzygyPath value ${syzygyPath}\n`);
   stockfish.stdin.write("setoption name SyzygyProbeDepth value 7\n");
   stockfish.stdin.write("setoption name UCI_LimitStrength value false\n");
