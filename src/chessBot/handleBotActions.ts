@@ -544,7 +544,8 @@ function processStockfishQueue(): void {
     }
   });
 
-  stockfish.on("close", () => {
+  stockfish.on("close", (code) => {
+    console.log("Stockfish process exited with code:", code);
     if (!resolved) {
       resolved = true;
       clearTimeout(timeout);
@@ -556,11 +557,11 @@ function processStockfishQueue(): void {
 
   stockfish.stdin.write("uci\n");
   stockfish.stdin.write("isready\n");
-  stockfish.stdin.write("setoption name Threads value 8\n");
-  stockfish.stdin.write("setoption name Hash value 4096\n");
+  stockfish.stdin.write("setoption name Threads value 1\n");
+  stockfish.stdin.write("setoption name Hash value 128\n");
   stockfish.stdin.write(`position fen ${fen}\n`);
-  //stockfish.stdin.write(`setoption name SyzygyPath value ${syzygyPath}\n`);
-  //stockfish.stdin.write("setoption name SyzygyProbeDepth value 7\n");
+  stockfish.stdin.write(`setoption name SyzygyPath value ${syzygyPath}\n`);
+  stockfish.stdin.write("setoption name SyzygyProbeDepth value 7\n");
   stockfish.stdin.write("setoption name UCI_LimitStrength value false\n");
   stockfish.stdin.write(`setoption name UCI_Elo value ${stockfish_elo}\n`);
   stockfish.stdin.write("setoption name Ponder value true\n");
