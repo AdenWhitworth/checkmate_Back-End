@@ -3,6 +3,7 @@ import { Chess, Move } from "chess.js";
 import { getModelSession } from "./handleModels";
 import * as path from "path";
 import fs from "fs/promises";
+import { spawn } from "child_process";
 
 type MoveHistory = string[];
 
@@ -373,4 +374,164 @@ export async function predictNextMoveOriginal(
     console.error("Error predicting move:", error);
     throw error;
   }
+}
+
+/**
+ * Type representing a Stockfish prediction request.
+ * 
+ * @type {Object} StockfishPredictRequest
+ * @property {Move[]} history - An array of moves representing the current game state history.
+ * @property {"novice" | "intermediate" | "advanced" | "master"} difficulty - The desired difficulty level for Stockfish.
+ * @property {Function} resolve - A function to resolve the promise with the best move chosen by Stockfish.
+ * @property {Function} reject - A function to reject the promise in case of errors or timeout.
+ */
+type StockfishPredictRequest = {
+  history: Move[];
+  difficulty: "novice" | "intermediate" | "advanced" | "master"
+  resolve: (value: Move) => void;
+  reject: (reason?: any) => void;
+};
+
+const stockfishRequestQueue: StockfishPredictRequest[] = [];
+const MAX_CONCURRENT_STOCKFISH_REQUESTS = 1;
+let activeStockfishRequests = 0;
+const STOCKFISH_TIMEOUT_MILLI_SECONDS = 30000;
+
+/**
+ * Converts a difficulty level to the corresponding Elo rating and search depth for Stockfish.
+ * 
+ * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level.
+ * @returns {Object} An object containing the Elo rating and the depth for Stockfish.
+ * @returns {number} stockfish_elo - The Elo rating to set for Stockfish.
+ * @returns {number} depth - The search depth to set for Stockfish.
+ */
+function difficultyToStockfishElo(difficulty: "novice" | "intermediate" | "advanced" | "master"): {stockfish_elo: number, depth: number} {
+  if (difficulty === "novice") return {stockfish_elo: 1350, depth: 1};
+  if (difficulty === "intermediate") return {stockfish_elo: 1350, depth: 5};
+  if (difficulty === "advanced") return {stockfish_elo: 1750, depth: 10};
+  return {stockfish_elo: 2750, depth: 20};
+}
+
+/**
+ * Predicts the next move using Stockfish based on the given history and difficulty level.
+ * 
+ * @param {Move[]} history - An array of moves representing the current game state history.
+ * @param {"novice" | "intermediate" | "advanced" | "master"} difficulty - The difficulty level for Stockfish.
+ * @returns {Promise<Move>} A promise that resolves with the best move predicted by Stockfish.
+ */
+export function predictNextMoveWithStockfish(
+  history: Move[],
+  difficulty: "novice" | "intermediate" | "advanced" | "master"
+): Promise<Move> {
+  return new Promise((resolve, reject) => {
+    stockfishRequestQueue.push({ history, difficulty, resolve, reject });
+    processStockfishQueue();
+  });
+}
+
+/**
+ * Processes the Stockfish request queue by executing requests one at a time.
+ * If there is an active request being processed, it waits until it's completed.
+ */
+function processStockfishQueue(): void {
+  if (stockfishRequestQueue.length === 0 || activeStockfishRequests >= MAX_CONCURRENT_STOCKFISH_REQUESTS) {
+    return;
+  }
+
+  activeStockfishRequests++;
+  const { history, difficulty, resolve, reject } = stockfishRequestQueue.shift()!;
+  const { stockfish_elo, depth } =  difficultyToStockfishElo(difficulty);
+  const stockfishPath = path.resolve(__dirname, "./stockfish/stockfish.exe");
+  const stockfish = spawn(stockfishPath);
+
+  let bestMove: Move | null = null;
+  let resolved = false;
+
+  const chess = new Chess();
+  try {
+    history.forEach((move) => chess.move(move));
+  } catch (error: any) {
+    reject(new Error(`Invalid move history: ${error.message}`));
+    activeStockfishRequests--;
+    processStockfishQueue();
+    return;
+  }
+
+  const fen = chess.fen();
+  const timeout = setTimeout(() => {
+    if (!resolved) {
+      resolved = true;
+      stockfish.kill();
+      reject(new Error("Stockfish process timed out"));
+      activeStockfishRequests--;
+      processStockfishQueue();
+    }
+  }, STOCKFISH_TIMEOUT_MILLI_SECONDS);
+
+  stockfish.stdout.on("data", (data) => {
+    const output = data.toString();
+  
+    if (output.includes("bestmove")) {
+      const bestMoveLAN = output.split("bestmove ")[1].split(" ")[0].trim();
+      const currentTurn = chess.turn();
+      const move = chess.move(bestMoveLAN); 
+  
+      if (!move) {
+        console.error(`Invalid move for ${currentTurn === 'b' ? 'Black' : 'White'}'s turn: ${bestMoveLAN}`);
+        bestMove = null; // Invalid move
+      } else {
+        bestMove = move; // Valid move
+      }
+  
+      if (bestMove === null) {
+        reject(new Error("Stockfish did not return a valid move."));
+      } else {
+        resolve(bestMove);
+      }
+  
+      resolved = true;
+      clearTimeout(timeout);
+      activeStockfishRequests--;
+      processStockfishQueue();
+    }
+  });
+  
+  stockfish.stderr.on("data", (data) => {
+    console.error(`Stockfish error: ${data.toString()}`);
+  });
+
+  stockfish.on("error", (error) => {
+    if (!resolved) {
+      resolved = true;
+      clearTimeout(timeout);
+      reject(new Error(`Failed to spawn Stockfish process: ${error.message}`));
+      activeStockfishRequests--;
+      processStockfishQueue();
+    }
+  });
+
+  stockfish.on("close", () => {
+    if (!resolved) {
+      resolved = true;
+      clearTimeout(timeout);
+      reject(new Error("Failed to determine the best move from Stockfish."));
+      activeStockfishRequests--;
+      processStockfishQueue();
+    }
+  });
+
+  stockfish.stdin.write("uci\n");
+  stockfish.stdin.write("isready\n");
+  stockfish.stdin.write("setoption name Threads value 8\n");
+  stockfish.stdin.write("setoption name Hash value 4096\n");
+  stockfish.stdin.write(`position fen ${fen}\n`);
+  const syzygyPath = path.resolve(__dirname, "./stockfish/src/syzygy");
+  stockfish.stdin.write(`setoption name SyzygyPath value ${syzygyPath}\n`);
+  stockfish.stdin.write("setoption name SyzygyProbeDepth value 7\n");
+  stockfish.stdin.write("setoption name UCI_LimitStrength value false\n");
+  stockfish.stdin.write(`setoption name UCI_Elo value ${stockfish_elo}\n`);
+  stockfish.stdin.write("setoption name Ponder value true\n");
+  stockfish.stdin.write(`go depth ${depth}\n`);
+  stockfish.stdin.write("setoption name MultiPV value 5\n");
+  stockfish.stdin.end();
 }
