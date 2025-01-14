@@ -443,17 +443,37 @@ function processStockfishQueue(): void {
   const { stockfish_elo, depth } =  difficultyToStockfishElo(difficulty);
   
   const stockfish_system: "linux" | "windows" = process.platform === "win32" ? "windows" : "linux";
-  console.log("Stockfish System Spinnup: ",stockfish_system);
+  console.log("Stockfish System Spinnup: ", stockfish_system);
+
   let stockfishPath, syzygyPath;
 
+  // For Windows, use stockfish.exe
   if (stockfish_system === "windows") {
     stockfishPath = path.resolve(process.cwd(), "src/chessBot/stockfish_windows/stockfish.exe");
     syzygyPath = path.resolve(process.cwd(), "src/chessBot/stockfish_windows/src/syzygy");
   } else {
+    // For Linux, ensure we use the correct path to the Stockfish binary and Syzygy files
     stockfishPath = path.resolve(process.cwd(), "src/chessBot/stockfish_linux/stockfish-ubuntu-x86-64-avx2");
     syzygyPath = path.resolve(process.cwd(), "src/chessBot/stockfish_linux/src/syzygy");
   }
-  
+
+  // Log paths for debugging
+  console.log("Stockfish Path:", stockfishPath);
+  console.log("Syzygy Path:", syzygyPath);
+
+  // Make sure the file is executable
+  if (process.platform === "linux") {
+    // Optional: Check if Stockfish binary is executable in the Linux environment
+    const fs = require("fs");
+    fs.access(stockfishPath, fs.constants.X_OK, (err: any) => {
+      if (err) {
+        console.error("Stockfish binary is not executable. Please check permissions.");
+      } else {
+        console.log("Stockfish binary is executable.");
+      }
+    });
+  }
+
   const stockfish = spawn(stockfishPath);
 
   let bestMove: Move | null = null;
