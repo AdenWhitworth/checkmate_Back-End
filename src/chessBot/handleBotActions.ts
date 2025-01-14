@@ -470,46 +470,32 @@ function processStockfishQueue(): void {
 
   stockfish.stdout.on("data", (data) => {
     const output = data.toString();
-    console.log("Stockfish output:", output);
-
-    if (output.includes("info depth")) {
-      console.log("Depth progression:", output);
-    }
-
+  
     if (output.includes("bestmove")) {
       const bestMoveLAN = output.split("bestmove ")[1].split(" ")[0].trim();
       const currentTurn = chess.turn();
-      const bestMoveColor = bestMoveLAN[0] === bestMoveLAN[0].toUpperCase() ? 'w' : 'b';
-    
-      if (currentTurn !== bestMoveColor) {
+      const move = chess.move(bestMoveLAN); 
+  
+      if (!move) {
         console.error(`Invalid move for ${currentTurn === 'b' ? 'Black' : 'White'}'s turn: ${bestMoveLAN}`);
-        bestMove = null;
+        bestMove = null; // Invalid move
       } else {
-        try {
-          const move = chess.move(bestMoveLAN);
-          if (!move) {
-            throw new Error(`Invalid move: ${bestMoveLAN}`);
-          }
-          bestMove = move;
-        } catch (error: any) {
-          console.error(`Error converting Stockfish move: ${error.message}`);
-          bestMove = null;
-        }
+        bestMove = move; // Valid move
       }
-    
+  
       if (bestMove === null) {
         reject(new Error("Stockfish did not return a valid move."));
       } else {
         resolve(bestMove);
       }
-    
+  
       resolved = true;
       clearTimeout(timeout);
       activeStockfishRequests--;
       processStockfishQueue();
     }
   });
-
+  
   stockfish.stderr.on("data", (data) => {
     console.error(`Stockfish error: ${data.toString()}`);
   });
