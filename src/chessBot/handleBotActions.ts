@@ -441,8 +441,19 @@ function processStockfishQueue(): void {
   activeStockfishRequests++;
   const { history, difficulty, resolve, reject } = stockfishRequestQueue.shift()!;
   const { stockfish_elo, depth } =  difficultyToStockfishElo(difficulty);
-  const stockfishPath = path.resolve(process.cwd(), "src/chessBot/stockfish/stockfish.exe");
-  const syzygyPath = path.resolve(process.cwd(), "src/chessBot/stockfish/src/syzygy");
+  
+  const stockfish_system: "linux" | "windows" = process.platform === "win32" ? "windows" : "linux";
+  console.log("Stockfish System Spinnup: ",stockfish_system);
+  let stockfishPath, syzygyPath;
+
+  if (stockfish_system === "windows") {
+    stockfishPath = path.resolve(process.cwd(), "src/chessBot/stockfish_windows/stockfish.exe");
+    syzygyPath = path.resolve(process.cwd(), "src/chessBot/stockfish_windows/src/syzygy");
+  } else {
+    stockfishPath = path.resolve(process.cwd(), "src/chessBot/stockfish_linux/stockfish-ubuntu-x86-64-avx2");
+    syzygyPath = path.resolve(process.cwd(), "src/chessBot/stockfish_linux/src/syzygy");
+  }
+  
   const stockfish = spawn(stockfishPath);
 
   let bestMove: Move | null = null;
