@@ -447,29 +447,19 @@ function processStockfishQueue(): void {
 
   let stockfishPath, syzygyPath;
 
-  // For Windows, use stockfish.exe
   if (stockfish_system === "windows") {
     stockfishPath = path.resolve(process.cwd(), "src/chessBot/stockfish_windows/stockfish.exe");
     syzygyPath = path.resolve(process.cwd(), "src/chessBot/stockfish_windows/src/syzygy");
   } else {
-    // For Linux, ensure we use the correct path to the Stockfish binary and Syzygy files
     stockfishPath = path.resolve(process.cwd(), "src/chessBot/stockfish_linux/stockfish-ubuntu-x86-64-avx2");
     syzygyPath = path.resolve(process.cwd(), "src/chessBot/stockfish_linux/src/syzygy");
   }
 
-  // Log paths for debugging
-  console.log("Stockfish Path:", stockfishPath);
-  console.log("Syzygy Path:", syzygyPath);
-
-  // Make sure the file is executable
   if (process.platform === "linux") {
-    // Optional: Check if Stockfish binary is executable in the Linux environment
     const fs = require("fs");
     fs.access(stockfishPath, fs.constants.X_OK, (err: any) => {
       if (err) {
         console.error("Stockfish binary is not executable. Please check permissions.");
-      } else {
-        console.log("Stockfish binary is executable.");
       }
     });
   }
@@ -502,8 +492,6 @@ function processStockfishQueue(): void {
 
   stockfish.stdout.on("data", (data) => {
     const output = data.toString();
-
-    console.log("Stockfish call output: ",output);
   
     if (output.includes("bestmove")) {
       const bestMoveLAN = output.split("bestmove ")[1].split(" ")[0].trim();
@@ -545,7 +533,6 @@ function processStockfishQueue(): void {
   });
 
   stockfish.on("close", (code) => {
-    console.log("Stockfish process exited with code:", code);
     if (!resolved) {
       resolved = true;
       clearTimeout(timeout);
