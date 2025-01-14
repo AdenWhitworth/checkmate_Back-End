@@ -502,6 +502,8 @@ function processStockfishQueue(): void {
 
   stockfish.stdout.on("data", (data) => {
     const output = data.toString();
+
+    console.log("Stockfish call output: ",output);
   
     if (output.includes("bestmove")) {
       const bestMoveLAN = output.split("bestmove ")[1].split(" ")[0].trim();
@@ -557,8 +559,8 @@ function processStockfishQueue(): void {
   stockfish.stdin.write("setoption name Threads value 8\n");
   stockfish.stdin.write("setoption name Hash value 4096\n");
   stockfish.stdin.write(`position fen ${fen}\n`);
-  stockfish.stdin.write(`setoption name SyzygyPath value ${syzygyPath}\n`);
-  stockfish.stdin.write("setoption name SyzygyProbeDepth value 7\n");
+  //stockfish.stdin.write(`setoption name SyzygyPath value ${syzygyPath}\n`);
+  //stockfish.stdin.write("setoption name SyzygyProbeDepth value 7\n");
   stockfish.stdin.write("setoption name UCI_LimitStrength value false\n");
   stockfish.stdin.write(`setoption name UCI_Elo value ${stockfish_elo}\n`);
   stockfish.stdin.write("setoption name Ponder value true\n");
