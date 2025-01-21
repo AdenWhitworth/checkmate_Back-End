@@ -5,7 +5,7 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { setupSocket } from "./controllers/socketController/socketController";
 import { errorHandler } from "./utility/errorhandler";
-import { preloadModels } from "./chessBot/handleModels";
+import { preloadBots } from "./chessBot/handleBotActions";
 import { processAndUploadPuzzles } from "./puzzles/handleProcessPuzzles";
 
 /**
@@ -74,7 +74,7 @@ const SHOULD_UPLOAD_PUZZLES = process.env.SHOULD_UPLOAD_PUZZLES === "true";
 
 (async () => {
   try {
-    await preloadModels();
+    await preloadBots();
 
     if (SHOULD_UPLOAD_PUZZLES) {
       console.log("Uploading a new set of puzzles...");
@@ -88,6 +88,7 @@ const SHOULD_UPLOAD_PUZZLES = process.env.SHOULD_UPLOAD_PUZZLES === "true";
     server.listen(port, () => {
       console.log(`Server is running on port ${port}`);
     });
+
   } catch (error) {
     console.error("Server startup failed:", error);
     process.exit(1);

@@ -1,8 +1,8 @@
 import { Move } from "chess.js";
-import { predictNextMove, predictNextMoveWithStockfish } from "../../../chessBot/handleBotActions";
 import { handleCallback, extractErrorMessage } from "../../../utility/handleCallback";
 import { BotMoveArgs } from "./BotMoveTypes";
 import { admin, firestore } from "../../../services/firebaseService";
+import { getBotBestMove } from "../../../chessBot/handleBotActions";
 
 /**
  * Handles the bot's move by determining the next move based on the provided FEN and difficulty level.
@@ -23,9 +23,7 @@ export const handleBotMove = async (
         }
 
         const gameRef = firestore.collection('botGames').doc(botGame.gameId);
-
-        //const botMove: Move = await predictNextMove(history, difficulty);
-        const botMove: Move = await predictNextMoveWithStockfish(history, difficulty)
+        const botMove: Move = await getBotBestMove(fen, difficulty, history);
 
         await firestore.runTransaction(async (transaction) => {
             const gameDoc = await transaction.get(gameRef);

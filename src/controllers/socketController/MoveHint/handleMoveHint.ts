@@ -1,7 +1,7 @@
 import { Move } from "chess.js";
-import { predictNextMove } from "../../../chessBot/handleBotActions";
 import { handleCallback, extractErrorMessage } from "../../../utility/handleCallback";
 import { MoveHintArgs } from "./MoveHintTypes";
+import { getBotBestMove } from "../../../chessBot/handleBotActions";
 
 /**
  * Handles the calculation of a move hint for a chess game by analyzing the current board state
@@ -23,7 +23,7 @@ export const handleMoveHint = async (
             throw new Error("Invalid chess data for hint");
         }
 
-        const bestMove: Move = await predictNextMove(history, "master");
+        const bestMove: Move = await getBotBestMove(fen, "master", history);
 
         handleCallback(callback, false, "Successfully determined the best next move", {move: bestMove});
     } catch (error) {
